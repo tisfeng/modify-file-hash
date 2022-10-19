@@ -13,10 +13,17 @@
   "license": "MIT",
   "commands": [
     {
-      "name": "index",
+      "name": "modifyHash",
       "title": "Modify Hash",
       "subtitle": "Video file",
       "description": "Batch modify the md5 hash of video files.",
+      "mode": "view"
+    },
+    {
+      "name": "restoreHash",
+      "title": "Restore Hash",
+      "subtitle": "Video file",
+      "description": "Batch restore the md5 hash of video files.",
       "mode": "view"
     }
   ],
