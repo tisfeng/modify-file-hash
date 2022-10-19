@@ -2,13 +2,13 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 00:11
+ * @lastEditTime: 2022-10-20 00:36
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
  */
 
-import { Detail, getSelectedFinderItems, showToast, Toast } from "@raycast/api";
+import { Detail, getPreferenceValues, getSelectedFinderItems, showToast, Toast } from "@raycast/api";
 import CryptoJS from "crypto-js";
 import fs from "fs";
 import path from "path";
@@ -16,12 +16,19 @@ import { useEffect, useState } from "react";
 
 export const appendString = "#1024";
 
+interface MyPreferences {
+  showLog: boolean;
+}
+
 export default function ModifyHash(modify: boolean) {
   console.log("run ModifyHash: ", modify);
 
   const [markdown, setMarkdown] = useState<string>();
   const title = modify ? "Modify Hash" : "Restore Hash";
+  const showLog = getPreferenceValues<MyPreferences>().showLog;
 
+  // Todo: Add a progress bar
+  // Todo: do not show error when no file selected
   const getSelectedFilePaths = async () => {
     console.log("getSelectedFilePaths");
     setMarkdown(`# ${title} \n\n ---- \n\n`);
@@ -47,17 +54,19 @@ export default function ModifyHash(modify: boolean) {
    */
   function appendStringToFileRecursive(path: string, str: string) {
     const stat = fs.statSync(path);
-    if (stat.isFile()) {
-      appendStringToFile(path, str);
-    } else if (stat.isDirectory()) {
-      const subtitle = `## Directory: ${path} \n\n`;
-      setMarkdown((prev) => prev + subtitle);
+    if (stat.isDirectory()) {
+      if (showLog) {
+        const subtitle = `## Directory: ${path} \n\n`;
+        setMarkdown((prev) => prev + subtitle);
+      }
 
       const files = fs.readdirSync(path);
       files.forEach((file) => {
         const filePath = path + "/" + file;
         appendStringToFileRecursive(filePath, str);
       });
+    } else if (stat.isFile()) {
+      appendStringToFile(path, str);
     }
   }
 
@@ -67,15 +76,19 @@ export default function ModifyHash(modify: boolean) {
   function appendStringToFile(filePath: string, str: string) {
     const stat = fs.statSync(filePath);
     if (stat.isFile()) {
-      const oldMd5 = md5File(filePath);
-      const oldMd5Log = `${path.basename(filePath)}, old md5: ${oldMd5}`;
-      setMarkdown((prev) => prev + oldMd5Log + "\n\n");
+      if (showLog) {
+        const oldMd5 = md5File(filePath);
+        const oldMd5Log = `${path.basename(filePath)}, old md5: ${oldMd5}`;
+        setMarkdown((prev) => prev + oldMd5Log + "\n\n");
 
-      fs.appendFileSync(filePath, str);
+        fs.appendFileSync(filePath, str);
 
-      const newMd5 = md5File(filePath);
-      const newMd5Log = `${path.basename(filePath)}, new md5: ${newMd5}`;
-      setMarkdown((prev) => prev + newMd5Log + "\n\n");
+        const newMd5 = md5File(filePath);
+        const newMd5Log = `${path.basename(filePath)}, new md5: ${newMd5}`;
+        setMarkdown((prev) => prev + newMd5Log + "\n\n");
+      } else {
+        fs.appendFileSync(filePath, str);
+      }
     } else if (stat.isDirectory()) {
       appendStringToFileRecursive(filePath, str);
     }
@@ -86,17 +99,19 @@ export default function ModifyHash(modify: boolean) {
    */
   function removeStringFromFileRecursive(path: string, str: string) {
     const stat = fs.statSync(path);
-    if (stat.isFile()) {
-      removeStringFromFile(path, str);
-    } else if (stat.isDirectory()) {
-      const subtitle = `## Directory: ${path} \n\n`;
-      setMarkdown((prev) => prev + subtitle);
+    if (stat.isDirectory()) {
+      if (showLog) {
+        const subtitle = `## Directory: ${path} \n\n`;
+        setMarkdown((prev) => prev + subtitle);
+      }
 
       const files = fs.readdirSync(path);
       files.forEach((file) => {
         const filePath = path + "/" + file;
         removeStringFromFileRecursive(filePath, str);
       });
+    } else if (stat.isFile()) {
+      removeStringFromFile(path, str);
     }
   }
 
@@ -114,8 +129,10 @@ export default function ModifyHash(modify: boolean) {
         lines.push(newLine);
         fs.writeFileSync(filePath, lines.join("\n"));
 
-        const log = `restore ${path.basename(filePath)} hash, md5: ${md5File(filePath)}`;
-        setMarkdown((prev) => prev + log + "\n\n");
+        if (showLog) {
+          const log = `restore ${path.basename(filePath)} hash, md5: ${md5File(filePath)}`;
+          setMarkdown((prev) => prev + log + "\n\n");
+        }
       }
     }
   }

@@ -10,6 +10,13 @@
     "Developer Tools",
     "Productivity"
   ],
+  "keywords": [
+    "video",
+    "hash",
+    "md5",
+    "modify",
+    "anti-censorship"
+  ],
   "license": "MIT",
   "commands": [
     {
@@ -25,6 +32,16 @@
       "subtitle": "Video file",
       "description": "Batch restore the md5 hash of video files.",
       "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "label": "Show Log",
+      "name": "showLog",
+      "description": "Show modify or restore file hash log",
+      "type": "checkbox",
+      "required": false,
+      "default": true
     }
   ],
   "dependencies": {
