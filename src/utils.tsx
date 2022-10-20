@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 09:56
+ * @lastEditTime: 2022-10-20 10:17
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -51,9 +51,15 @@ export default function ModifyHash(modify: boolean) {
    * Apppend a string to the end of all files in the current directory.
    */
   function appendStringToFileRecursive(path: string, str: string) {
+    // if path has suffix /, remove it
+    if (path.endsWith("/")) {
+      path = path.slice(0, -1);
+    }
+
     const stat = fs.statSync(path);
     if (stat.isDirectory()) {
       if (showLog) {
+        console.log(`Directory: ${path}`);
         const subtitle = `## Directory: ${path} \n\n`;
         setMarkdown((prev) => prev + subtitle);
       }
@@ -74,6 +80,7 @@ export default function ModifyHash(modify: boolean) {
   function appendStringToFile(filePath: string, str: string) {
     const stat = fs.statSync(filePath);
     if (stat.isFile()) {
+      console.log(`File: ${filePath}`);
       if (showLog) {
         const oldMd5 = md5File(filePath);
         const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
@@ -96,6 +103,9 @@ export default function ModifyHash(modify: boolean) {
    * Remove the appendString in the last line of all files in the current directory.
    */
   function removeStringFromFileRecursive(path: string, str: string) {
+    if (path.endsWith("/")) {
+      path = path.slice(0, -1);
+    }
     const stat = fs.statSync(path);
     if (stat.isDirectory()) {
       if (showLog) {
