@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 10:17
+ * @lastEditTime: 2022-10-20 11:19
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -10,6 +10,7 @@
 
 import { Detail, getPreferenceValues, getSelectedFinderItems } from "@raycast/api";
 import CryptoJS from "crypto-js";
+import { fileTypeFromFile } from "file-type";
 import fs from "fs";
 import path from "path";
 import { useEffect, useState } from "react";
@@ -77,10 +78,17 @@ export default function ModifyHash(modify: boolean) {
   /**
    * Apppend a string to the end of file.
    */
-  function appendStringToFile(filePath: string, str: string) {
+  async function appendStringToFile(filePath: string, str: string) {
     const stat = fs.statSync(filePath);
     if (stat.isFile()) {
       console.log(`File: ${filePath}`);
+
+      const isVideo = await isVideoFile(filePath);
+      if (!isVideo) {
+        console.log(`Not a video file: ${filePath}`);
+        return;
+      }
+
       if (showLog) {
         const oldMd5 = md5File(filePath);
         const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
@@ -123,9 +131,15 @@ export default function ModifyHash(modify: boolean) {
     }
   }
 
-  function removeStringFromFile(filePath: string, str: string) {
+  async function removeStringFromFile(filePath: string, str: string) {
     const stat = fs.statSync(filePath);
     if (stat.isFile()) {
+      const isVideo = await isVideoFile(filePath);
+      if (!isVideo) {
+        console.log(`Not a video file: ${filePath}`);
+        return;
+      }
+
       const lines = fs.readFileSync(filePath, "utf-8").split("\n");
       const lastLine = lines.pop();
 
@@ -147,16 +161,18 @@ export default function ModifyHash(modify: boolean) {
       getSelectedFilePaths().then((paths) => {
         if (paths) {
           paths.forEach((path) => {
-            console.log(path.path);
+            const filePath = path.path;
+            console.log(`Path: ${filePath}`);
+
             if (modify) {
-              appendStringToFileRecursive(path.path, appendString);
+              appendStringToFileRecursive(filePath, appendString);
             } else {
-              removeStringFromFileRecursive(path.path, appendString);
+              removeStringFromFileRecursive(filePath, appendString);
             }
-            const completeLog = `## ${title} has been completed 🎉🎉🎉 \n\n`;
-            setMarkdown((prev) => prev + completeLog);
           });
         }
+        const completeLog = `## ${title} has been completed 🎉🎉🎉 \n\n`;
+        setMarkdown((prev) => prev + completeLog);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -175,4 +191,40 @@ function md5File(filePath: string): string {
 
 function md5(text: string): string {
   return CryptoJS.MD5(text).toString();
+}
+
+/**
+ * Use file-type to check if the file is a video file.
+ */
+async function isVideoFile(filePath: string): Promise<boolean> {
+  const fileType = await fileTypeFromFile(filePath);
+  if (fileType) {
+    console.log(`File type: ${JSON.stringify(fileType)}`);
+    // {ext: 'mp4', mime: 'video/mp4'}
+    return fileType.mime.startsWith("video");
+  }
+  return isVideoFileBySuffix(filePath);
+}
+
+/**
+ * Check if the file has a video suffix.
+ */
+function isVideoFileBySuffix(filePath: string): boolean {
+  const videoSuffixes = [
+    "mp4",
+    "mov",
+    "avi",
+    "flv",
+    "wmv",
+    "mkv",
+    "rmvb",
+    "rm",
+    "3gp",
+    "quicktime",
+    "mts",
+    "m2ts",
+    "vob",
+  ];
+  const suffix = path.extname(filePath);
+  return videoSuffixes.includes(suffix);
 }
