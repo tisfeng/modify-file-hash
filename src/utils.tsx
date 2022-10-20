@@ -2,13 +2,13 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 21:47
+ * @lastEditTime: 2022-10-20 22:12
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
  */
 
-import { Detail, getPreferenceValues, getSelectedFinderItems } from "@raycast/api";
+import { Detail, getPreferenceValues, getSelectedFinderItems, showToast, Toast } from "@raycast/api";
 import crypto from "crypto";
 import { execaCommand } from "execa";
 import { fileTypeFromFile } from "file-type";
@@ -62,8 +62,6 @@ export default function ModifyHash(modify: boolean) {
     const stat = fs.statSync(path);
     if (stat.isDirectory()) {
       console.log(`Directory: ${path}`);
-      const subtitle = `## Directory: ${path} \n\n`;
-      setMarkdown((prev) => prev + subtitle);
 
       const files = fs.readdirSync(path);
       files.forEach(async (file) => {
@@ -119,10 +117,7 @@ export default function ModifyHash(modify: boolean) {
     }
     const stat = fs.statSync(path);
     if (stat.isDirectory()) {
-      if (showMd5Log) {
-        const subtitle = `## Directory: ${path} \n\n`;
-        setMarkdown((prev) => prev + subtitle);
-      }
+      console.log(`Directory: ${path}`);
 
       const files = fs.readdirSync(path);
       files.forEach(async (file) => {
@@ -154,8 +149,6 @@ export default function ModifyHash(modify: boolean) {
 
       console.log(`removeStringFromFile, File: ${filePath}`);
       const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
-      console.log(`cmd: ${cmd}`);
-
       await execaCommand(cmd, { shell: true });
 
       if (showMd5Log) {
@@ -168,8 +161,13 @@ export default function ModifyHash(modify: boolean) {
 
   useEffect(() => {
     if (markdown === undefined) {
-      getSelectedFilePaths().then((paths) => {
+      getSelectedFilePaths().then(async (paths) => {
         if (paths) {
+          const toast = await showToast({
+            style: Toast.Style.Animated,
+            title: `Start ${title} ......`,
+          });
+
           paths.forEach(async (path) => {
             const filePath = path.path;
             console.log(`Path: ${filePath}`);
@@ -178,12 +176,12 @@ export default function ModifyHash(modify: boolean) {
             if (modify) {
               appendStringToFileRecursive(filePath, appendString).then(() => {
                 console.log("appendStringToFileRecursive done");
-                showCostTimeLog(startTime);
+                showCostTimeLog(startTime, toast);
               });
             } else {
               removeStringFromFileRecursive(filePath, appendString).then(() => {
                 console.log("removeStringFromFileRecursive done");
-                showCostTimeLog(startTime);
+                showCostTimeLog(startTime, toast);
               });
             }
           });
@@ -193,14 +191,18 @@ export default function ModifyHash(modify: boolean) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markdown]);
 
-  function showCostTimeLog(startTime: number) {
+  function showCostTimeLog(startTime: number, toast: Toast) {
     const costTimeLog = `### cost time: \`${(new Date().getTime() - startTime) / 1000}\` seconds`;
     console.log(costTimeLog);
     setMarkdown((prev) => prev + costTimeLog + "\n\n");
 
-    const completeLog = `## ${title} has been completed 🎉🎉🎉 \n\n`;
+    const successLog = `${title} Successfully`;
+    const completeLog = `## ${successLog} 🎉🎉🎉 \n\n`;
     console.log(completeLog);
     setMarkdown((prev) => prev + completeLog);
+
+    toast.style = Toast.Style.Success;
+    toast.title = successLog;
   }
 
   return <Detail markdown={markdown} />;
