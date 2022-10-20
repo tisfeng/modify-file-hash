@@ -2,13 +2,13 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 09:35
+ * @lastEditTime: 2022-10-20 09:56
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
  */
 
-import { Detail, getPreferenceValues, getSelectedFinderItems, showToast, Toast } from "@raycast/api";
+import { Detail, getPreferenceValues, getSelectedFinderItems } from "@raycast/api";
 import CryptoJS from "crypto-js";
 import fs from "fs";
 import path from "path";
@@ -26,6 +26,7 @@ export default function ModifyHash(modify: boolean) {
   const [markdown, setMarkdown] = useState<string>();
   const title = modify ? "Modify Hash" : "Restore Hash";
   const showLog = getPreferenceValues<MyPreferences>().showLog;
+  const noFileSelectedMsg = "⚠️ No file selected";
 
   // Todo: Add a progress bar
   // Todo: do not show error when no file selected
@@ -36,16 +37,13 @@ export default function ModifyHash(modify: boolean) {
     try {
       const selectedItems = await getSelectedFinderItems();
       if (selectedItems.length === 0) {
-        showToast(Toast.Style.Failure, "No file selected");
+        setMarkdown((prev) => prev + noFileSelectedMsg);
         return;
       }
       return selectedItems;
     } catch (error) {
-      await showToast({
-        style: Toast.Style.Failure,
-        title: "Cannot copy file path",
-        message: String(error),
-      });
+      console.error(`getSelectedFinderItems error: ${error}`);
+      setMarkdown((prev) => prev + noFileSelectedMsg);
     }
   };
 
@@ -121,11 +119,8 @@ export default function ModifyHash(modify: boolean) {
       const lines = fs.readFileSync(filePath, "utf-8").split("\n");
       const lastLine = lines.pop();
 
-      // if last line contains appendString, remove it
       if (lastLine?.includes(str)) {
         const newLine = lastLine.replaceAll(str, "");
-
-        // write to file
         lines.push(newLine);
         fs.writeFileSync(filePath, lines.join("\n"));
 
