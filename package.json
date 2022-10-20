@@ -36,12 +36,12 @@
   ],
   "preferences": [
     {
-      "label": "Show Log",
-      "name": "showLog",
-      "description": "Show modify or restore file hash log",
+      "label": "Show Md5 Log",
+      "name": "showMd5Log",
+      "description": "Show modify or restore file md5 hash log, turn off it can save a lot of time.",
       "type": "checkbox",
       "required": false,
-      "default": true
+      "default": false
     }
   ],
   "dependencies": {

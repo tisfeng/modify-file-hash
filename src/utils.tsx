@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 21:15
+ * @lastEditTime: 2022-10-20 21:47
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -19,7 +19,7 @@ import { useEffect, useState } from "react";
 export const appendString = "#1024";
 
 interface MyPreferences {
-  showLog: boolean;
+  showMd5Log: boolean;
 }
 
 export default function ModifyHash(modify: boolean) {
@@ -27,11 +27,11 @@ export default function ModifyHash(modify: boolean) {
 
   const [markdown, setMarkdown] = useState<string>();
   const title = modify ? "Modify Hash" : "Restore Hash";
-  const showLog = getPreferenceValues<MyPreferences>().showLog;
+  const action = title.split(" ")[0].toLocaleLowerCase();
+  const showMd5Log = getPreferenceValues<MyPreferences>().showMd5Log;
   const noFileSelectedMsg = "⚠️ No file selected";
 
   // Todo: Add a progress bar
-  // Todo: do not show error when no file selected
   const getSelectedFilePaths = async () => {
     console.log("getSelectedFilePaths");
     setMarkdown(`# ${title} \n\n ---- \n\n`);
@@ -42,9 +42,10 @@ export default function ModifyHash(modify: boolean) {
         setMarkdown((prev) => prev + noFileSelectedMsg);
         return;
       }
+      setMarkdown((prev) => prev + `### start \`${title}\` ing \n\n`);
       return selectedItems;
     } catch (error) {
-      console.error(`getSelectedFinderItems error: ${error}`);
+      console.warn(`getSelectedFinderItems error: ${error}`);
       setMarkdown((prev) => prev + noFileSelectedMsg);
     }
   };
@@ -60,11 +61,9 @@ export default function ModifyHash(modify: boolean) {
 
     const stat = fs.statSync(path);
     if (stat.isDirectory()) {
-      if (showLog) {
-        console.log(`Directory: ${path}`);
-        const subtitle = `## Directory: ${path} \n\n`;
-        setMarkdown((prev) => prev + subtitle);
-      }
+      console.log(`Directory: ${path}`);
+      const subtitle = `## Directory: ${path} \n\n`;
+      setMarkdown((prev) => prev + subtitle);
 
       const files = fs.readdirSync(path);
       files.forEach(async (file) => {
@@ -90,14 +89,18 @@ export default function ModifyHash(modify: boolean) {
         return;
       }
 
-      if (showLog) {
+      if (showMd5Log) {
         const oldMd5 = await md5File(filePath);
         const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
         setMarkdown((prev) => prev + oldMd5Log + "\n\n");
+      } else {
+        const fileLog = `${action}: \`${path.basename(filePath)}\``;
+        setMarkdown((prev) => prev + fileLog + "\n\n");
       }
+
       fs.appendFileSync(filePath, str);
 
-      if (showLog) {
+      if (showMd5Log) {
         const newMd5 = await md5File(filePath);
         const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\``;
         setMarkdown((prev) => prev + newMd5Log + "\n\n");
@@ -116,7 +119,7 @@ export default function ModifyHash(modify: boolean) {
     }
     const stat = fs.statSync(path);
     if (stat.isDirectory()) {
-      if (showLog) {
+      if (showMd5Log) {
         const subtitle = `## Directory: ${path} \n\n`;
         setMarkdown((prev) => prev + subtitle);
       }
@@ -140,10 +143,13 @@ export default function ModifyHash(modify: boolean) {
         return;
       }
 
-      if (showLog) {
+      if (showMd5Log) {
         const oldMd5 = await md5File(filePath);
         const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
         setMarkdown((prev) => prev + oldMd5Log + "\n\n");
+      } else {
+        const fileLog = `${action}: \`${path.basename(filePath)}\``;
+        setMarkdown((prev) => prev + fileLog + "\n\n");
       }
 
       console.log(`removeStringFromFile, File: ${filePath}`);
@@ -152,7 +158,7 @@ export default function ModifyHash(modify: boolean) {
 
       await execaCommand(cmd, { shell: true });
 
-      if (showLog) {
+      if (showMd5Log) {
         const newMd5 = await md5File(filePath);
         const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\``;
         setMarkdown((prev) => prev + newMd5Log + "\n\n");
@@ -188,13 +194,13 @@ export default function ModifyHash(modify: boolean) {
   }, [markdown]);
 
   function showCostTimeLog(startTime: number) {
+    const costTimeLog = `### cost time: \`${(new Date().getTime() - startTime) / 1000}\` seconds`;
+    console.log(costTimeLog);
+    setMarkdown((prev) => prev + costTimeLog + "\n\n");
+
     const completeLog = `## ${title} has been completed 🎉🎉🎉 \n\n`;
     console.log(completeLog);
     setMarkdown((prev) => prev + completeLog);
-
-    const costTimeLog = `cost time: \`${(new Date().getTime() - startTime) / 1000}\` seconds`;
-    console.log(costTimeLog);
-    setMarkdown((prev) => prev + costTimeLog + "\n\n");
   }
 
   return <Detail markdown={markdown} />;
