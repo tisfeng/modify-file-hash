@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 00:36
+ * @lastEditTime: 2022-10-20 09:35
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -78,13 +78,13 @@ export default function ModifyHash(modify: boolean) {
     if (stat.isFile()) {
       if (showLog) {
         const oldMd5 = md5File(filePath);
-        const oldMd5Log = `${path.basename(filePath)}, old md5: ${oldMd5}`;
+        const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
         setMarkdown((prev) => prev + oldMd5Log + "\n\n");
 
         fs.appendFileSync(filePath, str);
 
         const newMd5 = md5File(filePath);
-        const newMd5Log = `${path.basename(filePath)}, new md5: ${newMd5}`;
+        const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\``;
         setMarkdown((prev) => prev + newMd5Log + "\n\n");
       } else {
         fs.appendFileSync(filePath, str);
@@ -130,7 +130,7 @@ export default function ModifyHash(modify: boolean) {
         fs.writeFileSync(filePath, lines.join("\n"));
 
         if (showLog) {
-          const log = `restore ${path.basename(filePath)} hash, md5: ${md5File(filePath)}`;
+          const log = `restore \`${path.basename(filePath)}\` hash, md5: \`${md5File(filePath)}\``;
           setMarkdown((prev) => prev + log + "\n\n");
         }
       }
