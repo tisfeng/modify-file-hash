@@ -2,14 +2,14 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 11:19
+ * @lastEditTime: 2022-10-20 17:34
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
  */
 
 import { Detail, getPreferenceValues, getSelectedFinderItems } from "@raycast/api";
-import CryptoJS from "crypto-js";
+import crypto from "crypto";
 import { fileTypeFromFile } from "file-type";
 import fs from "fs";
 import path from "path";
@@ -51,7 +51,7 @@ export default function ModifyHash(modify: boolean) {
   /**
    * Apppend a string to the end of all files in the current directory.
    */
-  function appendStringToFileRecursive(path: string, str: string) {
+  async function appendStringToFileRecursive(path: string, str: string) {
     // if path has suffix /, remove it
     if (path.endsWith("/")) {
       path = path.slice(0, -1);
@@ -66,12 +66,12 @@ export default function ModifyHash(modify: boolean) {
       }
 
       const files = fs.readdirSync(path);
-      files.forEach((file) => {
+      files.forEach(async (file) => {
         const filePath = path + "/" + file;
-        appendStringToFileRecursive(filePath, str);
+        await appendStringToFileRecursive(filePath, str);
       });
     } else if (stat.isFile()) {
-      appendStringToFile(path, str);
+      await appendStringToFile(path, str);
     }
   }
 
@@ -90,27 +90,27 @@ export default function ModifyHash(modify: boolean) {
       }
 
       if (showLog) {
-        const oldMd5 = md5File(filePath);
+        const oldMd5 = await md5File(filePath);
         const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
         setMarkdown((prev) => prev + oldMd5Log + "\n\n");
 
         fs.appendFileSync(filePath, str);
 
-        const newMd5 = md5File(filePath);
+        const newMd5 = await md5File(filePath);
         const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\``;
         setMarkdown((prev) => prev + newMd5Log + "\n\n");
       } else {
         fs.appendFileSync(filePath, str);
       }
     } else if (stat.isDirectory()) {
-      appendStringToFileRecursive(filePath, str);
+      await appendStringToFileRecursive(filePath, str);
     }
   }
 
   /**
    * Remove the appendString in the last line of all files in the current directory.
    */
-  function removeStringFromFileRecursive(path: string, str: string) {
+  async function removeStringFromFileRecursive(path: string, str: string) {
     if (path.endsWith("/")) {
       path = path.slice(0, -1);
     }
@@ -122,12 +122,12 @@ export default function ModifyHash(modify: boolean) {
       }
 
       const files = fs.readdirSync(path);
-      files.forEach((file) => {
+      files.forEach(async (file) => {
         const filePath = path + "/" + file;
-        removeStringFromFileRecursive(filePath, str);
+        await removeStringFromFileRecursive(filePath, str);
       });
     } else if (stat.isFile()) {
-      removeStringFromFile(path, str);
+      await removeStringFromFile(path, str);
     }
   }
 
@@ -149,7 +149,8 @@ export default function ModifyHash(modify: boolean) {
         fs.writeFileSync(filePath, lines.join("\n"));
 
         if (showLog) {
-          const log = `restore \`${path.basename(filePath)}\` hash, md5: \`${md5File(filePath)}\``;
+          const md5 = await md5File(filePath);
+          const log = `Restore \`${path.basename(filePath)}\` hash, md5: \`${md5}\``;
           setMarkdown((prev) => prev + log + "\n\n");
         }
       }
@@ -160,19 +161,29 @@ export default function ModifyHash(modify: boolean) {
     if (markdown === undefined) {
       getSelectedFilePaths().then((paths) => {
         if (paths) {
-          paths.forEach((path) => {
+          paths.forEach(async (path) => {
             const filePath = path.path;
             console.log(`Path: ${filePath}`);
 
             if (modify) {
-              appendStringToFileRecursive(filePath, appendString);
+              appendStringToFileRecursive(filePath, appendString).then(() => {
+                console.log("appendStringToFileRecursive done");
+
+                const completeLog = `## ${title} has been completed 🎉🎉🎉 \n\n`;
+                console.log(completeLog);
+                setMarkdown((prev) => prev + completeLog);
+              });
             } else {
-              removeStringFromFileRecursive(filePath, appendString);
+              removeStringFromFileRecursive(filePath, appendString).then(() => {
+                console.log("removeStringFromFileRecursive done");
+
+                const completeLog = `## ${title} has been completed 🎉🎉🎉 \n\n`;
+                console.log(completeLog);
+                setMarkdown((prev) => prev + completeLog);
+              });
             }
           });
         }
-        const completeLog = `## ${title} has been completed 🎉🎉🎉 \n\n`;
-        setMarkdown((prev) => prev + completeLog);
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,15 +193,19 @@ export default function ModifyHash(modify: boolean) {
 }
 
 /**
- * Get the md5 hash of a file.
+ * Get the md5 hash of a file, use stream.
  */
-function md5File(filePath: string): string {
-  const fileContent = fs.readFileSync(filePath, "utf-8");
-  return md5(fileContent);
-}
-
-function md5(text: string): string {
-  return CryptoJS.MD5(text).toString();
+function md5File(filePath: string): Promise<string> {
+  return new Promise((resolve) => {
+    const hash = crypto.createHash("md5");
+    const stream = fs.createReadStream(filePath);
+    stream.on("data", (chunk) => hash.update(chunk));
+    stream.on("end", () => {
+      const md5 = hash.digest("hex");
+      console.log(`md5: ${md5}`);
+      resolve(md5);
+    });
+  });
 }
 
 /**
