@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 17:34
+ * @lastEditTime: 2022-10-20 19:27
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -14,6 +14,7 @@ import { fileTypeFromFile } from "file-type";
 import fs from "fs";
 import path from "path";
 import { useEffect, useState } from "react";
+import readline from "readline";
 
 export const appendString = "#1024";
 
@@ -140,20 +141,43 @@ export default function ModifyHash(modify: boolean) {
         return;
       }
 
-      const lines = fs.readFileSync(filePath, "utf-8").split("\n");
-      const lastLine = lines.pop();
+      console.log(`removeStringFromFile, File: ${filePath}`);
 
-      if (lastLine?.includes(str)) {
-        const newLine = lastLine.replaceAll(str, "");
-        lines.push(newLine);
-        fs.writeFileSync(filePath, lines.join("\n"));
+      // use stream to read line
+      const rl = readline.createInterface({
+        input: fs.createReadStream(filePath),
+      });
 
-        if (showLog) {
-          const md5 = await md5File(filePath);
-          const log = `Restore \`${path.basename(filePath)}\` hash, md5: \`${md5}\``;
-          setMarkdown((prev) => prev + log + "\n\n");
+      const dir = path.dirname(filePath);
+      const ext = path.extname(filePath);
+      const filename = path.basename(filePath, ext);
+
+      const tmpFile = `${dir}/${filename}_tmp${ext}`;
+      console.log("tmpFile: ", tmpFile);
+      const writable = fs.createWriteStream(tmpFile);
+
+      rl.on("line", (line) => {
+        if (line.endsWith(str)) {
+          writable.write(line.replaceAll(str, ""));
+        } else {
+          writable.write(line);
         }
-      }
+      });
+
+      rl.on("close", async () => {
+        console.warn("readline close");
+        writable.close();
+
+        const oldMd5 = await md5File(filePath);
+        const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
+        setMarkdown((prev) => prev + oldMd5Log + "\n\n");
+        const newMd5 = await md5File(tmpFile);
+        const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\``;
+        setMarkdown((prev) => prev + newMd5Log + "\n\n");
+
+        fs.unlinkSync(filePath);
+        fs.renameSync(tmpFile, filePath);
+      });
     }
   }
 
