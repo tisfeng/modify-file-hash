@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 19:27
+ * @lastEditTime: 2022-10-20 21:15
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -10,11 +10,11 @@
 
 import { Detail, getPreferenceValues, getSelectedFinderItems } from "@raycast/api";
 import crypto from "crypto";
+import { execaCommand } from "execa";
 import { fileTypeFromFile } from "file-type";
 import fs from "fs";
 import path from "path";
 import { useEffect, useState } from "react";
-import readline from "readline";
 
 export const appendString = "#1024";
 
@@ -94,14 +94,13 @@ export default function ModifyHash(modify: boolean) {
         const oldMd5 = await md5File(filePath);
         const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
         setMarkdown((prev) => prev + oldMd5Log + "\n\n");
+      }
+      fs.appendFileSync(filePath, str);
 
-        fs.appendFileSync(filePath, str);
-
+      if (showLog) {
         const newMd5 = await md5File(filePath);
         const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\``;
         setMarkdown((prev) => prev + newMd5Log + "\n\n");
-      } else {
-        fs.appendFileSync(filePath, str);
       }
     } else if (stat.isDirectory()) {
       await appendStringToFileRecursive(filePath, str);
@@ -141,43 +140,23 @@ export default function ModifyHash(modify: boolean) {
         return;
       }
 
-      console.log(`removeStringFromFile, File: ${filePath}`);
-
-      // use stream to read line
-      const rl = readline.createInterface({
-        input: fs.createReadStream(filePath),
-      });
-
-      const dir = path.dirname(filePath);
-      const ext = path.extname(filePath);
-      const filename = path.basename(filePath, ext);
-
-      const tmpFile = `${dir}/${filename}_tmp${ext}`;
-      console.log("tmpFile: ", tmpFile);
-      const writable = fs.createWriteStream(tmpFile);
-
-      rl.on("line", (line) => {
-        if (line.endsWith(str)) {
-          writable.write(line.replaceAll(str, ""));
-        } else {
-          writable.write(line);
-        }
-      });
-
-      rl.on("close", async () => {
-        console.warn("readline close");
-        writable.close();
-
+      if (showLog) {
         const oldMd5 = await md5File(filePath);
         const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
         setMarkdown((prev) => prev + oldMd5Log + "\n\n");
-        const newMd5 = await md5File(tmpFile);
+      }
+
+      console.log(`removeStringFromFile, File: ${filePath}`);
+      const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
+      console.log(`cmd: ${cmd}`);
+
+      await execaCommand(cmd, { shell: true });
+
+      if (showLog) {
+        const newMd5 = await md5File(filePath);
         const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\``;
         setMarkdown((prev) => prev + newMd5Log + "\n\n");
-
-        fs.unlinkSync(filePath);
-        fs.renameSync(tmpFile, filePath);
-      });
+      }
     }
   }
 
@@ -189,21 +168,16 @@ export default function ModifyHash(modify: boolean) {
             const filePath = path.path;
             console.log(`Path: ${filePath}`);
 
+            const startTime = new Date().getTime();
             if (modify) {
               appendStringToFileRecursive(filePath, appendString).then(() => {
                 console.log("appendStringToFileRecursive done");
-
-                const completeLog = `## ${title} has been completed 🎉🎉🎉 \n\n`;
-                console.log(completeLog);
-                setMarkdown((prev) => prev + completeLog);
+                showCostTimeLog(startTime);
               });
             } else {
               removeStringFromFileRecursive(filePath, appendString).then(() => {
                 console.log("removeStringFromFileRecursive done");
-
-                const completeLog = `## ${title} has been completed 🎉🎉🎉 \n\n`;
-                console.log(completeLog);
-                setMarkdown((prev) => prev + completeLog);
+                showCostTimeLog(startTime);
               });
             }
           });
@@ -212,6 +186,16 @@ export default function ModifyHash(modify: boolean) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markdown]);
+
+  function showCostTimeLog(startTime: number) {
+    const completeLog = `## ${title} has been completed 🎉🎉🎉 \n\n`;
+    console.log(completeLog);
+    setMarkdown((prev) => prev + completeLog);
+
+    const costTimeLog = `cost time: \`${(new Date().getTime() - startTime) / 1000}\` seconds`;
+    console.log(costTimeLog);
+    setMarkdown((prev) => prev + costTimeLog + "\n\n");
+  }
 
   return <Detail markdown={markdown} />;
 }
