@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-21 14:14
+ * @lastEditTime: 2022-10-21 18:58
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -49,41 +49,58 @@ export default function ModifyHash(isModify: boolean) {
     }
   };
 
-  async function exeCmdToFileRecursive(path: string, str: string, isModify: boolean): Promise<void> {
+  /**
+   * Execute the command to a file path recursively.
+   */
+  async function exeCmdToFileRecursive(filePath: string, str: string, isModify: boolean): Promise<void> {
     // if path has suffix '/', remove it
-    if (path.endsWith("/")) {
-      path = path.slice(0, -1);
+    if (filePath.endsWith("/")) {
+      filePath = filePath.slice(0, -1);
     }
 
     return new Promise((resolve) => {
-      const stat = fs.statSync(path);
+      const stat = fs.statSync(filePath);
       if (stat.isDirectory()) {
-        console.log(`Directory: ${path}`);
+        console.log(`Directory: ${filePath}`);
 
-        const files = fs.readdirSync(path);
-        const traverseFiles = files.map(async (file) => {
-          const filePath = path + "/" + file;
-          await exeCmdToFileRecursive(filePath, str, isModify);
-        });
-
-        Promise.all(traverseFiles).then(() => {
-          console.log(`traverseFiles appendStringToFileRecursive done: ${path}`);
+        const files = fs.readdirSync(filePath);
+        const filePaths = files.map((file) => filePath + "/" + file);
+        exeCmdToFileListRecursive(filePaths, str, isModify).then(() => {
           resolve();
         });
       } else if (stat.isFile()) {
         const exeCmd = isModify ? appendFileString : removeFileString;
-        execCmdToFile(path, str, exeCmd).then(() => {
-          console.log(`appendStringToFile done: ${path}`);
+        execCmdToFile(exeCmd, filePath, str).then(() => {
+          console.log(`appendStringToFile done: ${filePath}`);
           resolve();
         });
       }
     });
   }
 
+  /**
+   * Execute command to a list of file paths recursively.
+   */
+  async function exeCmdToFileListRecursive(filePaths: string[], str: string, isModify: boolean): Promise<void> {
+    return new Promise((resolve) => {
+      const traverseFiles = filePaths.map(async (path) => {
+        // Todo: remove await ???
+        await exeCmdToFileRecursive(path, str, isModify);
+      });
+      Promise.all(traverseFiles).then(() => {
+        console.log(`filePaths exeCmdToFileListRecursive done: ${filePaths}`);
+        resolve();
+      });
+    });
+  }
+
+  /**
+   * Execute the command to the single file, not directory.
+   */
   async function execCmdToFile(
+    exeCmd: (filePath: string, str: string) => Promise<void>,
     filePath: string,
-    str: string,
-    exeCmd: (filePath: string, str: string) => Promise<void>
+    str: string
   ): Promise<void> {
     console.log(`execCmdToFile: ${filePath}`);
 
@@ -101,21 +118,21 @@ export default function ModifyHash(isModify: boolean) {
 
     let modifyFileLog = `${action}: \`${path.basename(filePath)}\` \n\n`;
     if (showMD5Log) {
-      const oldMd5 = await md5File(filePath);
-      modifyFileLog = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\` \n\n`;
+      const oldMD5 = await md5File(filePath);
+      modifyFileLog = `\`${path.basename(filePath)}\` old md5: \`${oldMD5}\` \n\n`;
     }
     console.log(modifyFileLog);
 
     await exeCmd(filePath, str);
 
-    if (showMD5Log) {
-      const newMd5 = await md5File(filePath);
-      const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\` \n\n`;
-      console.log(newMd5Log);
-      modifyFileLog += newMd5Log;
-    }
+    setMarkdown((prev) => prev + modifyFileLog);
 
-    setMarkdown((prev) => prev + modifyFileLog + "\n\n");
+    if (showMD5Log) {
+      const newMD5 = await md5File(filePath);
+      const newMD5Log = `\`${path.basename(filePath)}\` new md5: \`${newMD5}\` \n\n`;
+      console.log(newMD5Log);
+      setMarkdown((prev) => prev + newMD5Log + "\n\n");
+    }
 
     return Promise.resolve();
   }
@@ -127,7 +144,6 @@ export default function ModifyHash(isModify: boolean) {
 
   async function removeFileString(filePath: string, str: string): Promise<void> {
     const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
-
     return new Promise((resolve) => {
       execaCommand(cmd, { shell: true }).then(() => {
         console.log(`removeFileString done: ${filePath}`);
@@ -145,16 +161,11 @@ export default function ModifyHash(isModify: boolean) {
             title: `Start ${title} ......`,
           });
 
-          paths.forEach(async (path) => {
-            const filePath = path.path;
-            console.log(`Path: ${filePath}`);
-
-            const startTime = new Date().getTime();
-
-            exeCmdToFileRecursive(filePath, APPEND_STRING, isModify).then(() => {
-              console.warn(`exeCmdToFileRecursive done: ${isModify}`);
-              showCostTimeLog(startTime, toast);
-            });
+          const startTime = new Date().getTime();
+          const filePaths = paths.map((item) => item.path);
+          exeCmdToFileListRecursive(filePaths, APPEND_STRING, isModify).then(() => {
+            console.warn(`exeCmdToFileRecursive done: ${isModify}`);
+            showCostTimeLog(startTime, toast);
           });
         }
       });
