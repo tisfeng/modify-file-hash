@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-20 23:54
+ * @lastEditTime: 2022-10-21 14:14
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -16,22 +16,21 @@ import fs from "fs";
 import path from "path";
 import { useEffect, useState } from "react";
 
-export const appendString = "#1024";
+export const APPEND_STRING = "#1024";
 
 interface MyPreferences {
-  showMd5Log: boolean;
+  showMD5Log: boolean;
 }
 
-export default function ModifyHash(modify: boolean) {
-  console.log("run ModifyHash: ", modify);
+export default function ModifyHash(isModify: boolean) {
+  console.log("run ModifyHash: ", isModify);
 
   const [markdown, setMarkdown] = useState<string>();
-  const title = modify ? "Modify Hash" : "Restore Hash";
+  const title = isModify ? "Modify Video Hash" : "Restore Video Hash";
   const action = title.split(" ")[0].toLocaleLowerCase();
-  const showMd5Log = getPreferenceValues<MyPreferences>().showMd5Log;
+  const showMD5Log = getPreferenceValues<MyPreferences>().showMD5Log;
   const noFileSelectedMsg = "⚠️ No file selected";
 
-  // Todo: Add a progress bar
   const getSelectedFilePaths = async () => {
     console.log("getSelectedFilePaths");
     setMarkdown(`# ${title} \n\n ---- \n\n`);
@@ -50,11 +49,8 @@ export default function ModifyHash(modify: boolean) {
     }
   };
 
-  /**
-   * Apppend a string to the end of all files in the current directory.
-   */
-  function appendStringToFileRecursive(path: string, str: string): Promise<void> {
-    // if path has suffix /, remove it
+  async function exeCmdToFileRecursive(path: string, str: string, isModify: boolean): Promise<void> {
+    // if path has suffix '/', remove it
     if (path.endsWith("/")) {
       path = path.slice(0, -1);
     }
@@ -65,116 +61,79 @@ export default function ModifyHash(modify: boolean) {
         console.log(`Directory: ${path}`);
 
         const files = fs.readdirSync(path);
-        files.forEach((file) => {
+        const traverseFiles = files.map(async (file) => {
           const filePath = path + "/" + file;
-          resolve(appendStringToFileRecursive(filePath, str));
+          await exeCmdToFileRecursive(filePath, str, isModify);
+        });
+
+        Promise.all(traverseFiles).then(() => {
+          console.log(`traverseFiles appendStringToFileRecursive done: ${path}`);
+          resolve();
         });
       } else if (stat.isFile()) {
-        resolve(appendStringToFile(path, str));
+        const exeCmd = isModify ? appendFileString : removeFileString;
+        execCmdToFile(path, str, exeCmd).then(() => {
+          console.log(`appendStringToFile done: ${path}`);
+          resolve();
+        });
       }
     });
   }
 
-  /**
-   * Apppend a string to the end of file.
-   */
-  async function appendStringToFile(filePath: string, str: string): Promise<void> {
-    console.log(`appendStringToFile: ${filePath}`);
+  async function execCmdToFile(
+    filePath: string,
+    str: string,
+    exeCmd: (filePath: string, str: string) => Promise<void>
+  ): Promise<void> {
+    console.log(`execCmdToFile: ${filePath}`);
 
     const stat = fs.statSync(filePath);
     if (!stat.isFile()) {
       console.warn(`Not a file: ${filePath}`);
-      return;
+      return Promise.resolve();
     }
-
-    console.log(`File: ${filePath}`);
 
     const isVideo = await isVideoFile(filePath);
+    console.log(`isVideo: ${isVideo}`);
     if (!isVideo) {
-      console.log(`Not a video file: ${filePath}`);
-      return;
+      return Promise.resolve();
     }
 
-    if (showMd5Log) {
+    let modifyFileLog = `${action}: \`${path.basename(filePath)}\` \n\n`;
+    if (showMD5Log) {
       const oldMd5 = await md5File(filePath);
-      const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
-      setMarkdown((prev) => prev + oldMd5Log + "\n\n");
-    } else {
-      const fileLog = `${action}: \`${path.basename(filePath)}\``;
-      setMarkdown((prev) => prev + fileLog + "\n\n");
+      modifyFileLog = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\` \n\n`;
+    }
+    console.log(modifyFileLog);
+
+    await exeCmd(filePath, str);
+
+    if (showMD5Log) {
+      const newMd5 = await md5File(filePath);
+      const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\` \n\n`;
+      console.log(newMd5Log);
+      modifyFileLog += newMd5Log;
     }
 
+    setMarkdown((prev) => prev + modifyFileLog + "\n\n");
+
+    return Promise.resolve();
+  }
+
+  function appendFileString(filePath: string, str: string): Promise<void> {
     fs.appendFileSync(filePath, str);
-
-    if (showMd5Log) {
-      const newMd5 = await md5File(filePath);
-      const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\``;
-      setMarkdown((prev) => prev + newMd5Log + "\n\n");
-    }
-
     return Promise.resolve();
   }
 
-  /**
-   * Remove the appendString in the last line of all files in the current directory.
-   */
-  async function removeStringFromFileRecursive(path: string, str: string): Promise<void> {
-    if (path.endsWith("/")) {
-      path = path.slice(0, -1);
-    }
+  async function removeFileString(filePath: string, str: string): Promise<void> {
+    const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
 
     return new Promise((resolve) => {
-      const stat = fs.statSync(path);
-      if (stat.isDirectory()) {
-        console.log(`Directory: ${path}`);
-
-        const files = fs.readdirSync(path);
-        files.forEach(async (file) => {
-          const filePath = path + "/" + file;
-          resolve(removeStringFromFileRecursive(filePath, str));
-        });
-      } else if (stat.isFile()) {
-        resolve(removeStringFromFile(path, str));
-      }
+      execaCommand(cmd, { shell: true }).then(() => {
+        console.log(`removeFileString done: ${filePath}`);
+        resolve();
+      });
     });
-  }
-
-  async function removeStringFromFile(filePath: string, str: string): Promise<void> {
-    console.log(`removeStringFromFile: ${filePath}`);
-
-    const stat = fs.statSync(filePath);
-    if (!stat.isFile()) {
-      console.warn(`Not a file: ${filePath}`);
-      return;
-    }
-
-    console.log(`File: ${filePath}`);
-
-    const isVideo = await isVideoFile(filePath);
-    if (!isVideo) {
-      console.log(`Not a video file: ${filePath}`);
-      return;
-    }
-
-    if (showMd5Log) {
-      const oldMd5 = await md5File(filePath);
-      const oldMd5Log = `\`${path.basename(filePath)}\` old md5: \`${oldMd5}\``;
-      setMarkdown((prev) => prev + oldMd5Log + "\n\n");
-    } else {
-      const fileLog = `${action}: \`${path.basename(filePath)}\``;
-      setMarkdown((prev) => prev + fileLog + "\n\n");
-    }
-
-    const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
-    await execaCommand(cmd, { shell: true });
-
-    if (showMd5Log) {
-      const newMd5 = await md5File(filePath);
-      const newMd5Log = `\`${path.basename(filePath)}\` new md5: \`${newMd5}\``;
-      setMarkdown((prev) => prev + newMd5Log + "\n\n");
-    }
-
-    return Promise.resolve();
   }
 
   useEffect(() => {
@@ -191,17 +150,11 @@ export default function ModifyHash(modify: boolean) {
             console.log(`Path: ${filePath}`);
 
             const startTime = new Date().getTime();
-            if (modify) {
-              appendStringToFileRecursive(filePath, appendString).then(() => {
-                console.log("appendStringToFileRecursive done");
-                showCostTimeLog(startTime, toast);
-              });
-            } else {
-              removeStringFromFileRecursive(filePath, appendString).then(() => {
-                console.log("removeStringFromFileRecursive done");
-                showCostTimeLog(startTime, toast);
-              });
-            }
+
+            exeCmdToFileRecursive(filePath, APPEND_STRING, isModify).then(() => {
+              console.warn(`exeCmdToFileRecursive done: ${isModify}`);
+              showCostTimeLog(startTime, toast);
+            });
           });
         }
       });
@@ -230,6 +183,8 @@ export default function ModifyHash(modify: boolean) {
  * Get the md5 hash of a file, use stream.
  */
 function md5File(filePath: string): Promise<string> {
+  console.log(`md5 of file: ${filePath}`);
+
   return new Promise((resolve) => {
     const hash = crypto.createHash("md5");
     const stream = fs.createReadStream(filePath);
@@ -246,13 +201,15 @@ function md5File(filePath: string): Promise<string> {
  * Use file-type to check if the file is a video file.
  */
 async function isVideoFile(filePath: string): Promise<boolean> {
+  console.log(`check isVideoFile: ${filePath}`);
+
   const fileType = await fileTypeFromFile(filePath);
   if (fileType) {
-    console.log(`File type: ${JSON.stringify(fileType)}`);
     // {ext: 'mp4', mime: 'video/mp4'}
-    return fileType.mime.startsWith("video");
+    console.log(`File type: ${JSON.stringify(fileType)}`);
+    return Promise.resolve(fileType.mime.startsWith("video"));
   }
-  return isVideoFileBySuffix(filePath);
+  return Promise.resolve(isVideoFileBySuffix(filePath));
 }
 
 /**

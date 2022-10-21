@@ -15,6 +15,7 @@
     "hash",
     "md5",
     "modify",
+    "restore",
     "anti-censorship"
   ],
   "license": "MIT",
@@ -22,22 +23,22 @@
     {
       "name": "modifyHash",
       "title": "Modify Hash",
-      "subtitle": "Video file",
+      "subtitle": "Video File",
       "description": "Batch modify the md5 hash of video files.",
       "mode": "view"
     },
     {
       "name": "restoreHash",
       "title": "Restore Hash",
-      "subtitle": "Video file",
+      "subtitle": "Video File",
       "description": "Batch restore the md5 hash of video files.",
       "mode": "view"
     }
   ],
   "preferences": [
     {
-      "label": "Show Md5 Log",
-      "name": "showMd5Log",
+      "label": "Show MD5 Log",
+      "name": "showMD5Log",
       "description": "Show modify or restore file md5 hash log, turn off it can save a lot of time.",
       "type": "checkbox",
       "required": false,
