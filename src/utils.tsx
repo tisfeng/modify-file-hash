@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-21 18:58
+ * @lastEditTime: 2022-10-21 23:20
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -23,8 +23,6 @@ interface MyPreferences {
 }
 
 export default function ModifyHash(isModify: boolean) {
-  console.log("run ModifyHash: ", isModify);
-
   const [markdown, setMarkdown] = useState<string>();
   const title = isModify ? "Modify Video Hash" : "Restore Video Hash";
   const action = title.split(" ")[0].toLocaleLowerCase();
@@ -81,13 +79,12 @@ export default function ModifyHash(isModify: boolean) {
   /**
    * Execute command to a list of file paths recursively.
    */
-  async function exeCmdToFileListRecursive(filePaths: string[], str: string, isModify: boolean): Promise<void> {
+  function exeCmdToFileListRecursive(filePaths: string[], str: string, isModify: boolean): Promise<void> {
     return new Promise((resolve) => {
-      const traverseFiles = filePaths.map(async (path) => {
-        // Todo: remove await ???
-        await exeCmdToFileRecursive(path, str, isModify);
+      const exeCmdToFiles = filePaths.map((path) => {
+        return exeCmdToFileRecursive(path, str, isModify);
       });
-      Promise.all(traverseFiles).then(() => {
+      Promise.all(exeCmdToFiles).then(() => {
         console.log(`filePaths exeCmdToFileListRecursive done: ${filePaths}`);
         resolve();
       });
@@ -97,44 +94,53 @@ export default function ModifyHash(isModify: boolean) {
   /**
    * Execute the command to the single file, not directory.
    */
-  async function execCmdToFile(
+  function execCmdToFile(
     exeCmd: (filePath: string, str: string) => Promise<void>,
     filePath: string,
     str: string
   ): Promise<void> {
     console.log(`execCmdToFile: ${filePath}`);
 
-    const stat = fs.statSync(filePath);
-    if (!stat.isFile()) {
-      console.warn(`Not a file: ${filePath}`);
-      return Promise.resolve();
-    }
+    return new Promise((resolve) => {
+      const stat = fs.statSync(filePath);
+      if (!stat.isFile()) {
+        console.warn(`Not a file: ${filePath}`);
+        resolve();
+      }
 
-    const isVideo = await isVideoFile(filePath);
-    console.log(`isVideo: ${isVideo}`);
-    if (!isVideo) {
-      return Promise.resolve();
-    }
+      isVideoFile(filePath).then((isVideo) => {
+        if (!isVideo) {
+          resolve();
+        }
 
-    let modifyFileLog = `${action}: \`${path.basename(filePath)}\` \n\n`;
-    if (showMD5Log) {
-      const oldMD5 = await md5File(filePath);
-      modifyFileLog = `\`${path.basename(filePath)}\` old md5: \`${oldMD5}\` \n\n`;
-    }
-    console.log(modifyFileLog);
+        let modifyFileLog = `${action}: \`${path.basename(filePath)}\` \n\n`;
+        if (!showMD5Log) {
+          setMarkdown((prev) => prev + modifyFileLog);
+          console.log(modifyFileLog);
 
-    await exeCmd(filePath, str);
+          exeCmd(filePath, str).then(() => {
+            resolve();
+          });
+        } else {
+          md5File(filePath).then((md5) => {
+            modifyFileLog = `\`${path.basename(filePath)}\` old md5: \`${md5}\` \n\n`;
+            setMarkdown((prev) => prev + modifyFileLog);
+            console.log(modifyFileLog);
 
-    setMarkdown((prev) => prev + modifyFileLog);
-
-    if (showMD5Log) {
-      const newMD5 = await md5File(filePath);
-      const newMD5Log = `\`${path.basename(filePath)}\` new md5: \`${newMD5}\` \n\n`;
-      console.log(newMD5Log);
-      setMarkdown((prev) => prev + newMD5Log + "\n\n");
-    }
-
-    return Promise.resolve();
+            exeCmd(filePath, str).then(() => {
+              if (showMD5Log) {
+                md5File(filePath).then((newMD5) => {
+                  const newMD5Log = `\`${path.basename(filePath)}\` new md5: \`${newMD5}\` \n\n`;
+                  console.log(newMD5Log);
+                  setMarkdown((prev) => prev + newMD5Log + "\n\n");
+                  resolve();
+                });
+              }
+            });
+          });
+        }
+      });
+    });
   }
 
   function appendFileString(filePath: string, str: string): Promise<void> {
@@ -191,10 +197,33 @@ export default function ModifyHash(isModify: boolean) {
 }
 
 /**
- * Get the md5 hash of a file, use stream.
+ * Get the md5 hash of a file, use execa command.
+ *
+ * * Note: This function is fatser than md5File2.
  */
 function md5File(filePath: string): Promise<string> {
-  console.log(`md5 of file: ${filePath}`);
+  console.log(`md5 of file: ${path.basename(filePath)}`);
+
+  const env = process.env;
+  env.PATH = "/usr/sbin:/usr/bin:/bin:/sbin:/sbin/md5";
+
+  return new Promise((resolve) => {
+    const cmd = `md5 -q '${filePath}'`;
+    execaCommand(cmd, { shell: true }).then((result) => {
+      const md5 = result.stdout;
+      console.log(`md5: ${md5}`);
+      resolve(md5);
+
+      delete env.PATH;
+    });
+  });
+}
+
+/**
+ * Get the md5 hash of a file, use stream.
+ */
+export function md5File2(filePath: string): Promise<string> {
+  console.log(`md5 of file: ${path.basename(filePath)}`);
 
   return new Promise((resolve) => {
     const hash = crypto.createHash("md5");
@@ -212,15 +241,21 @@ function md5File(filePath: string): Promise<string> {
  * Use file-type to check if the file is a video file.
  */
 async function isVideoFile(filePath: string): Promise<boolean> {
-  console.log(`check isVideoFile: ${filePath}`);
+  const fileName = path.basename(filePath);
+  console.log(`check isVideoFile: ${fileName}`);
 
-  const fileType = await fileTypeFromFile(filePath);
-  if (fileType) {
-    // {ext: 'mp4', mime: 'video/mp4'}
-    console.log(`File type: ${JSON.stringify(fileType)}`);
-    return Promise.resolve(fileType.mime.startsWith("video"));
-  }
-  return Promise.resolve(isVideoFileBySuffix(filePath));
+  return new Promise((resolve) => {
+    fileTypeFromFile(filePath).then((fileType) => {
+      if (fileType) {
+        // {ext: 'mp4', mime: 'video/mp4'}
+        console.log(`File type: ${JSON.stringify(fileType)}`);
+        const isVideo = fileType.mime.startsWith("video");
+        console.log(`isVideo: ${isVideo}, ${fileName}`);
+        resolve(isVideo);
+      }
+      resolve(isVideoFileBySuffix(filePath));
+    });
+  });
 }
 
 /**
