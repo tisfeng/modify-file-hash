@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-22 22:17
+ * @lastEditTime: 2022-10-22 23:59
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -20,18 +20,52 @@ export const APPEND_STRING = "#$1024$#";
 
 interface MyPreferences {
   showMD5Log: boolean;
+  enableVideo: boolean;
+  enableAudio: boolean;
+  enableImage: boolean;
+}
+
+export interface MediaFileInfo {
+  ext: string;
+  mime: string;
+  mediaType?: MediaType;
+}
+
+enum MediaType {
+  Video = "Video",
+  Audio = "Audio",
+  Image = "Image",
 }
 
 export default function ModifyHash(isModify: boolean) {
   const [markdown, setMarkdown] = useState<string>();
-  const title = isModify ? "Modify Video Hash" : "Restore Video Hash";
+  const title = isModify ? "Modify File Hash" : "Restore File Hash";
   const action = title.split(" ")[0];
-  const showMD5Log = getPreferenceValues<MyPreferences>().showMD5Log;
-  const noFileSelectedMsg = "⚠️ No file selected, please select files containing video.";
+  const noFileSelectedMsg = "⚠️ No file selected, please select files containing media.";
+
+  const myPreferences = getPreferenceValues<MyPreferences>();
+  const { showMD5Log, enableVideo, enableAudio, enableImage } = myPreferences;
+  const enableTypes: MediaType[] = [];
+  if (enableVideo) {
+    enableTypes.push(MediaType.Video);
+  }
+  if (enableAudio) {
+    enableTypes.push(MediaType.Audio);
+  }
+  if (enableImage) {
+    enableTypes.push(MediaType.Image);
+  }
+  console.log(`enableTypes: ${enableTypes}`);
 
   const getSelectedFilePaths = async () => {
     console.log("getSelectedFilePaths");
     setMarkdown(`# ${title} \n\n ---- \n\n`);
+
+    if (enableTypes.length === 0) {
+      const noEanbledTypeMsg = "⚠️ No media type enabled, please select at least one media type in preferences.";
+      setMarkdown((prev) => prev + noEanbledTypeMsg);
+      return;
+    }
 
     try {
       const selectedItems = await getSelectedFinderItems();
@@ -39,7 +73,7 @@ export default function ModifyHash(isModify: boolean) {
         setMarkdown((prev) => prev + noFileSelectedMsg);
         return;
       }
-      setMarkdown((prev) => prev + `### Start \`${title}\` \n\n`);
+      setMarkdown((prev) => prev + `### Start ${action}, Enabled File Types: \`${enableTypes}\` \n\n`);
       return selectedItems;
     } catch (error) {
       console.warn(`getSelectedFinderItems error: ${error}`);
@@ -86,33 +120,39 @@ export default function ModifyHash(isModify: boolean) {
     str: string
   ): Promise<void> {
     console.log(`execCmdToFile: ${filePath}`);
+    const fileName = path.basename(filePath);
 
     const stat = fs.statSync(filePath);
     if (!stat.isFile()) {
-      console.warn(`Not a file: ${filePath}`);
+      console.warn(`Not a file: ${fileName}`);
       return;
     }
 
     const mediaFileInfo = await getMediaFileInfo(filePath);
     if (!mediaFileInfo?.mediaType) {
-      console.warn(`Not a media file: ${filePath}`);
+      console.warn(`Not a media file: ${fileName}`);
+      return;
+    }
+
+    if (!enableTypes.includes(mediaFileInfo.mediaType)) {
+      console.warn(`Not a enabled media type: ${fileName}`);
       return;
     }
 
     if (!showMD5Log) {
-      const modifyFileLog = `${action} \`${path.basename(filePath)}\` \n\n`;
+      const modifyFileLog = `${action} \`${fileName}\` \n\n`;
       setMarkdown((prev) => prev + modifyFileLog);
       console.log(modifyFileLog);
       await exeCmd(filePath, str);
     } else {
       const md5 = await md5File(filePath);
-      const oldMD5Log = `\`${path.basename(filePath)}\` old md5: \`${md5}\` \n\n`;
+      const oldMD5Log = `\`${fileName}\` old md5: \`${md5}\` \n\n`;
       setMarkdown((prev) => prev + oldMD5Log);
       console.log(oldMD5Log);
       await exeCmd(filePath, str);
       if (showMD5Log) {
         const newMD5 = await md5File(filePath);
-        const newMD5Log = `\`${path.basename(filePath)}\` new md5: \`${newMD5}\` \n\n`;
+        const newMD5Log = `\`${fileName}\` new md5: \`${newMD5}\` \n\n`;
         console.log(newMD5Log);
         setMarkdown((prev) => prev + newMD5Log + "\n\n");
       }
@@ -206,24 +246,12 @@ export function md5File2(filePath: string): Promise<string> {
   });
 }
 
-export interface MediaFileInfo {
-  ext: string;
-  mime: string;
-  mediaType?: MediaType;
-}
-
-enum MediaType {
-  Video = "video",
-  Audio = "audio",
-  Image = "image",
-}
-
 /**
  * Get media file type from file, use file-type.
  */
 async function getMediaFileInfo(filePath: string): Promise<MediaFileInfo | undefined> {
   const fileName = path.basename(filePath);
-  console.log(`check isVideoFile: ${fileName}`);
+  console.log(`get media file info: ${fileName}`);
 
   const fileType = await fileTypeFromFile(filePath); // {ext: 'mp4', mime: 'video/mp4'}
   if (fileType) {
@@ -232,10 +260,10 @@ async function getMediaFileInfo(filePath: string): Promise<MediaFileInfo | undef
     const mediaFileInfo: MediaFileInfo = {
       ext: fileType.ext,
       mime: fileType.mime,
-      mediaType: type as MediaType,
     };
 
-    if (Object.values(MediaType).includes(type as MediaType)) {
+    const allMediaTypes = Object.values(MediaType).map((item) => item.toLowerCase());
+    if (allMediaTypes.includes(type)) {
       mediaFileInfo.mediaType = type as MediaType;
       console.log(`mediaFileInfo: ${JSON.stringify(mediaFileInfo, null, 4)}`);
     }

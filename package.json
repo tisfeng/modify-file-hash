@@ -1,8 +1,8 @@
 {
   "$schema": "https://www.raycast.com/schemas/extension.json",
-  "name": "modify-video-hash",
-  "title": "Modify Video Hash",
-  "description": "Batch modify the md5 hash of video files, which can be easily used for uploading online disk to prevent censorship and harmony.",
+  "name": "modify-hash",
+  "title": "Modify Hash",
+  "description": "Batch modify the md5 hash of media files, which can be simply used for uploading online disk to prevent censorship.",
   "icon": "hasher.png",
   "author": "isfeng",
   "categories": [
@@ -10,7 +10,10 @@
     "Productivity"
   ],
   "keywords": [
+    "media",
     "video",
+    "audio",
+    "image",
     "hash",
     "md5",
     "modify",
@@ -22,15 +25,15 @@
     {
       "name": "modifyHash",
       "title": "Modify Hash",
-      "subtitle": "Video Files",
-      "description": "Batch modify the md5 hash of video files.",
+      "subtitle": "Media Files",
+      "description": "Batch modify the md5 hash of media files.",
       "mode": "view"
     },
     {
       "name": "restoreHash",
       "title": "Restore Hash",
-      "subtitle": "Video Files",
-      "description": "Batch restore the md5 hash of video files.",
+      "subtitle": "Media Files",
+      "description": "Batch restore the md5 hash of media files.",
       "mode": "view"
     }
   ],
@@ -38,10 +41,35 @@
     {
       "label": "Show MD5 Log",
       "name": "showMD5Log",
-      "description": "Show modify or restore file md5 hash log, turn off it can save a lot of time.",
+      "description": "Show modify or restore file md5 hash log, turn off it can save time.",
       "type": "checkbox",
       "required": false,
       "default": true
+    },
+    {
+      "title": "Enable to Modify the Type of Media Files",
+      "name": "enableVideo",
+      "label": "Video",
+      "description": "Enable to modify the hash of video files.",
+      "type": "checkbox",
+      "required": false,
+      "default": true
+    },
+    {
+      "name": "enableAudio",
+      "label": "Audio",
+      "description": "Enable to modify the hash of audio files.",
+      "type": "checkbox",
+      "required": false,
+      "default": false
+    },
+    {
+      "name": "enableImage",
+      "label": "Image",
+      "description": "Enable to modify the hash of image files.",
+      "type": "checkbox",
+      "required": false,
+      "default": false
     }
   ],
   "dependencies": {
