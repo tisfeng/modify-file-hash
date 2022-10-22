@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-21 23:20
+ * @lastEditTime: 2022-10-22 13:05
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -56,91 +56,74 @@ export default function ModifyHash(isModify: boolean) {
       filePath = filePath.slice(0, -1);
     }
 
-    return new Promise((resolve) => {
-      const stat = fs.statSync(filePath);
-      if (stat.isDirectory()) {
-        console.log(`Directory: ${filePath}`);
+    const stat = fs.statSync(filePath);
+    if (stat.isDirectory()) {
+      console.log(`Directory: ${filePath}`);
 
-        const files = fs.readdirSync(filePath);
-        const filePaths = files.map((file) => filePath + "/" + file);
-        exeCmdToFileListRecursive(filePaths, str, isModify).then(() => {
-          resolve();
-        });
-      } else if (stat.isFile()) {
-        const exeCmd = isModify ? appendFileString : removeFileString;
-        execCmdToFile(exeCmd, filePath, str).then(() => {
-          console.log(`appendStringToFile done: ${filePath}`);
-          resolve();
-        });
-      }
-    });
+      const files = fs.readdirSync(filePath);
+      const filePaths = files.map((file) => filePath + "/" + file);
+      await exeCmdToFileListRecursive(filePaths, str, isModify);
+      return Promise.resolve();
+    } else if (stat.isFile()) {
+      const exeCmd = isModify ? appendFileString : removeFileString;
+      await execCmdToFile(exeCmd, filePath, str);
+      console.log(`appendStringToFile done: ${filePath}`);
+      return Promise.resolve();
+    }
   }
 
   /**
    * Execute command to a list of file paths recursively.
    */
-  function exeCmdToFileListRecursive(filePaths: string[], str: string, isModify: boolean): Promise<void> {
-    return new Promise((resolve) => {
-      const exeCmdToFiles = filePaths.map((path) => {
-        return exeCmdToFileRecursive(path, str, isModify);
-      });
-      Promise.all(exeCmdToFiles).then(() => {
-        console.log(`filePaths exeCmdToFileListRecursive done: ${filePaths}`);
-        resolve();
-      });
-    });
+  async function exeCmdToFileListRecursive(filePaths: string[], str: string, isModify: boolean): Promise<void> {
+    const exeCmdToFiles = filePaths.map((path) => exeCmdToFileRecursive(path, str, isModify));
+    await Promise.all(exeCmdToFiles);
+    console.log(`filePaths exeCmdToFileListRecursive done: ${filePaths}`);
+    return Promise.resolve();
   }
 
   /**
    * Execute the command to the single file, not directory.
    */
-  function execCmdToFile(
+  async function execCmdToFile(
     exeCmd: (filePath: string, str: string) => Promise<void>,
     filePath: string,
     str: string
   ): Promise<void> {
     console.log(`execCmdToFile: ${filePath}`);
 
-    return new Promise((resolve) => {
-      const stat = fs.statSync(filePath);
-      if (!stat.isFile()) {
-        console.warn(`Not a file: ${filePath}`);
-        resolve();
+    const stat = fs.statSync(filePath);
+    if (!stat.isFile()) {
+      console.warn(`Not a file: ${filePath}`);
+      return Promise.resolve();
+    }
+
+    const isVideo = await isVideoFile(filePath);
+    if (!isVideo) {
+      return Promise.resolve();
+    }
+
+    let modifyFileLog = `${action}: \`${path.basename(filePath)}\` \n\n`;
+    if (!showMD5Log) {
+      setMarkdown((prev) => prev + modifyFileLog);
+      console.log(modifyFileLog);
+      await exeCmd(filePath, str);
+      return Promise.resolve();
+    } else {
+      const md5 = await md5File(filePath);
+      modifyFileLog = `\`${path.basename(filePath)}\` old md5: \`${md5}\` \n\n`;
+      setMarkdown((prev) => prev + modifyFileLog);
+      console.log(modifyFileLog);
+
+      await exeCmd(filePath, str);
+      if (showMD5Log) {
+        const newMD5 = await md5File(filePath);
+        const newMD5Log = `\`${path.basename(filePath)}\` new md5: \`${newMD5}\` \n\n`;
+        console.log(newMD5Log);
+        setMarkdown((prev) => prev + newMD5Log + "\n\n");
+        return Promise.resolve();
       }
-
-      isVideoFile(filePath).then((isVideo) => {
-        if (!isVideo) {
-          resolve();
-        }
-
-        let modifyFileLog = `${action}: \`${path.basename(filePath)}\` \n\n`;
-        if (!showMD5Log) {
-          setMarkdown((prev) => prev + modifyFileLog);
-          console.log(modifyFileLog);
-
-          exeCmd(filePath, str).then(() => {
-            resolve();
-          });
-        } else {
-          md5File(filePath).then((md5) => {
-            modifyFileLog = `\`${path.basename(filePath)}\` old md5: \`${md5}\` \n\n`;
-            setMarkdown((prev) => prev + modifyFileLog);
-            console.log(modifyFileLog);
-
-            exeCmd(filePath, str).then(() => {
-              if (showMD5Log) {
-                md5File(filePath).then((newMD5) => {
-                  const newMD5Log = `\`${path.basename(filePath)}\` new md5: \`${newMD5}\` \n\n`;
-                  console.log(newMD5Log);
-                  setMarkdown((prev) => prev + newMD5Log + "\n\n");
-                  resolve();
-                });
-              }
-            });
-          });
-        }
-      });
-    });
+    }
   }
 
   function appendFileString(filePath: string, str: string): Promise<void> {
@@ -150,12 +133,9 @@ export default function ModifyHash(isModify: boolean) {
 
   async function removeFileString(filePath: string, str: string): Promise<void> {
     const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
-    return new Promise((resolve) => {
-      execaCommand(cmd, { shell: true }).then(() => {
-        console.log(`removeFileString done: ${filePath}`);
-        resolve();
-      });
-    });
+    await execaCommand(cmd, { shell: true });
+    console.log(`removeFileString done: ${filePath}`);
+    return Promise.resolve();
   }
 
   useEffect(() => {
@@ -169,10 +149,9 @@ export default function ModifyHash(isModify: boolean) {
 
           const startTime = new Date().getTime();
           const filePaths = paths.map((item) => item.path);
-          exeCmdToFileListRecursive(filePaths, APPEND_STRING, isModify).then(() => {
-            console.warn(`exeCmdToFileRecursive done: ${isModify}`);
-            showCostTimeLog(startTime, toast);
-          });
+          await exeCmdToFileListRecursive(filePaths, APPEND_STRING, isModify);
+          console.warn(`exeCmdToFileRecursive done: ${isModify}`);
+          showCostTimeLog(startTime, toast);
         }
       });
     }
@@ -201,22 +180,19 @@ export default function ModifyHash(isModify: boolean) {
  *
  * * Note: This function is fatser than md5File2.
  */
-function md5File(filePath: string): Promise<string> {
+async function md5File(filePath: string): Promise<string> {
   console.log(`md5 of file: ${path.basename(filePath)}`);
 
   const env = process.env;
   env.PATH = "/usr/sbin:/usr/bin:/bin:/sbin:/sbin/md5";
 
-  return new Promise((resolve) => {
-    const cmd = `md5 -q '${filePath}'`;
-    execaCommand(cmd, { shell: true }).then((result) => {
-      const md5 = result.stdout;
-      console.log(`md5: ${md5}`);
-      resolve(md5);
+  const cmd = `md5 -q '${filePath}'`;
+  const result = await execaCommand(cmd, { shell: true });
+  const md5 = result.stdout;
+  console.log(`md5: ${md5}`);
+  delete env.PATH;
 
-      delete env.PATH;
-    });
-  });
+  return Promise.resolve(md5);
 }
 
 /**
@@ -244,18 +220,15 @@ async function isVideoFile(filePath: string): Promise<boolean> {
   const fileName = path.basename(filePath);
   console.log(`check isVideoFile: ${fileName}`);
 
-  return new Promise((resolve) => {
-    fileTypeFromFile(filePath).then((fileType) => {
-      if (fileType) {
-        // {ext: 'mp4', mime: 'video/mp4'}
-        console.log(`File type: ${JSON.stringify(fileType)}`);
-        const isVideo = fileType.mime.startsWith("video");
-        console.log(`isVideo: ${isVideo}, ${fileName}`);
-        resolve(isVideo);
-      }
-      resolve(isVideoFileBySuffix(filePath));
-    });
-  });
+  const fileType = await fileTypeFromFile(filePath);
+  if (fileType) {
+    // {ext: 'mp4', mime: 'video/mp4'}
+    console.log(`File type: ${JSON.stringify(fileType)}`);
+    const isVideo = fileType.mime.startsWith("video");
+    console.log(`isVideo: ${isVideo}, ${fileName}`);
+    return Promise.resolve(isVideo);
+  }
+  return Promise.resolve(isVideoFileBySuffix(filePath));
 }
 
 /**
