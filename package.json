@@ -5,7 +5,6 @@
   "description": "Batch modify the md5 hash of video files, which can be easily used for uploading online disk to prevent censorship and harmony.",
   "icon": "hasher.png",
   "author": "isfeng",
-  "owner": "izual",
   "categories": [
     "Developer Tools",
     "Productivity"
