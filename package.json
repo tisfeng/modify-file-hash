@@ -41,7 +41,7 @@
       "description": "Show modify or restore file md5 hash log, turn off it can save a lot of time.",
       "type": "checkbox",
       "required": false,
-      "default": false
+      "default": true
     }
   ],
   "dependencies": {

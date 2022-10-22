@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-22 18:13
+ * @lastEditTime: 2022-10-22 22:17
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -16,7 +16,7 @@ import fs from "fs";
 import path from "path";
 import { useEffect, useState } from "react";
 
-export const APPEND_STRING = "#1024";
+export const APPEND_STRING = "#$1024$#";
 
 interface MyPreferences {
   showMD5Log: boolean;
@@ -93,8 +93,9 @@ export default function ModifyHash(isModify: boolean) {
       return;
     }
 
-    const isVideo = await isVideoFile(filePath);
-    if (!isVideo) {
+    const mediaFileInfo = await getMediaFileInfo(filePath);
+    if (!mediaFileInfo?.mediaType) {
+      console.warn(`Not a media file: ${filePath}`);
       return;
     }
 
@@ -124,6 +125,7 @@ export default function ModifyHash(isModify: boolean) {
   }
 
   async function removeStringFromFile(filePath: string, str: string): Promise<void> {
+    // -i means in-place, $ means end of line.
     const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
     await execaCommand(cmd, { shell: true });
     console.log(`removeFileString done: ${filePath}`);
@@ -204,43 +206,39 @@ export function md5File2(filePath: string): Promise<string> {
   });
 }
 
-/**
- * Use file-type to check if the file is a video file.
- */
-async function isVideoFile(filePath: string): Promise<boolean> {
-  const fileName = path.basename(filePath);
-  console.log(`check isVideoFile: ${fileName}`);
+export interface MediaFileInfo {
+  ext: string;
+  mime: string;
+  mediaType?: MediaType;
+}
 
-  const fileType = await fileTypeFromFile(filePath);
-  if (fileType) {
-    // {ext: 'mp4', mime: 'video/mp4'}
-    console.log(`File type: ${JSON.stringify(fileType)}`);
-    const isVideo = fileType.mime.startsWith("video");
-    console.log(`isVideo: ${isVideo}, ${fileName}`);
-    return isVideo;
-  }
-  return isVideoFileBySuffix(filePath);
+enum MediaType {
+  Video = "video",
+  Audio = "audio",
+  Image = "image",
 }
 
 /**
- * Check if the file has a video suffix.
+ * Get media file type from file, use file-type.
  */
-function isVideoFileBySuffix(filePath: string): boolean {
-  const videoSuffixes = [
-    "mp4",
-    "mov",
-    "avi",
-    "flv",
-    "wmv",
-    "mkv",
-    "rmvb",
-    "rm",
-    "3gp",
-    "quicktime",
-    "mts",
-    "m2ts",
-    "vob",
-  ];
-  const suffix = path.extname(filePath);
-  return videoSuffixes.includes(suffix);
+async function getMediaFileInfo(filePath: string): Promise<MediaFileInfo | undefined> {
+  const fileName = path.basename(filePath);
+  console.log(`check isVideoFile: ${fileName}`);
+
+  const fileType = await fileTypeFromFile(filePath); // {ext: 'mp4', mime: 'video/mp4'}
+  if (fileType) {
+    console.log(`File type: ${JSON.stringify(fileType)}`);
+    const type = fileType.mime.split("/")[0];
+    const mediaFileInfo: MediaFileInfo = {
+      ext: fileType.ext,
+      mime: fileType.mime,
+      mediaType: type as MediaType,
+    };
+
+    if (Object.values(MediaType).includes(type as MediaType)) {
+      mediaFileInfo.mediaType = type as MediaType;
+      console.log(`mediaFileInfo: ${JSON.stringify(mediaFileInfo, null, 4)}`);
+    }
+    return mediaFileInfo;
+  }
 }
