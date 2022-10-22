@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-22 23:59
+ * @lastEditTime: 2022-10-23 00:12
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -41,7 +41,6 @@ export default function ModifyHash(isModify: boolean) {
   const [markdown, setMarkdown] = useState<string>();
   const title = isModify ? "Modify File Hash" : "Restore File Hash";
   const action = title.split(" ")[0];
-  const noFileSelectedMsg = "⚠️ No file selected, please select files containing media.";
 
   const myPreferences = getPreferenceValues<MyPreferences>();
   const { showMD5Log, enableVideo, enableAudio, enableImage } = myPreferences;
@@ -55,10 +54,11 @@ export default function ModifyHash(isModify: boolean) {
   if (enableImage) {
     enableTypes.push(MediaType.Image);
   }
-  console.log(`enableTypes: ${enableTypes}`);
 
   const getSelectedFilePaths = async () => {
     console.log("getSelectedFilePaths");
+    console.log(`enableTypes: ${enableTypes}`);
+
     setMarkdown(`# ${title} \n\n ---- \n\n`);
 
     if (enableTypes.length === 0) {
@@ -66,6 +66,8 @@ export default function ModifyHash(isModify: boolean) {
       setMarkdown((prev) => prev + noEanbledTypeMsg);
       return;
     }
+
+    const noFileSelectedMsg = "⚠️ No file selected, please select files containing media.";
 
     try {
       const selectedItems = await getSelectedFinderItems();
@@ -80,6 +82,14 @@ export default function ModifyHash(isModify: boolean) {
       setMarkdown((prev) => prev + noFileSelectedMsg);
     }
   };
+
+  /**
+   * Execute command to a list of file paths recursively.
+   */
+  async function exeCmdToFileListRecursive(filePaths: string[], str: string, isModify: boolean): Promise<void> {
+    const exeCmdToFiles = filePaths.map((path) => exeCmdToFileRecursive(path, str, isModify));
+    await Promise.all(exeCmdToFiles);
+  }
 
   /**
    * Execute the command to a file path recursively.
@@ -101,14 +111,6 @@ export default function ModifyHash(isModify: boolean) {
       const exeCmd = isModify ? appendStringToFile : removeStringFromFile;
       await execCmdToFile(exeCmd, filePath, str);
     }
-  }
-
-  /**
-   * Execute command to a list of file paths recursively.
-   */
-  async function exeCmdToFileListRecursive(filePaths: string[], str: string, isModify: boolean): Promise<void> {
-    const exeCmdToFiles = filePaths.map((path) => exeCmdToFileRecursive(path, str, isModify));
-    await Promise.all(exeCmdToFiles);
   }
 
   /**
@@ -159,16 +161,18 @@ export default function ModifyHash(isModify: boolean) {
     }
   }
 
-  function appendStringToFile(filePath: string, str: string): Promise<void> {
-    fs.appendFileSync(filePath, str);
-    return Promise.resolve();
-  }
+  function showCostTimeLog(startTime: number, toast: Toast) {
+    const costTimeLog = `### Cost time: \`${(new Date().getTime() - startTime) / 1000}\` seconds`;
+    console.log(costTimeLog);
+    setMarkdown((prev) => prev + costTimeLog + "\n\n");
 
-  async function removeStringFromFile(filePath: string, str: string): Promise<void> {
-    // -i means in-place, $ means end of line.
-    const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
-    await execaCommand(cmd, { shell: true });
-    console.log(`removeFileString done: ${filePath}`);
+    const successLog = `${title} Successfully`;
+    const completeLog = `## ${successLog} 🎉🎉🎉 \n\n`;
+    console.log(completeLog);
+    setMarkdown((prev) => prev + completeLog);
+
+    toast.style = Toast.Style.Success;
+    toast.title = successLog;
   }
 
   useEffect(() => {
@@ -191,21 +195,19 @@ export default function ModifyHash(isModify: boolean) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markdown]);
 
-  function showCostTimeLog(startTime: number, toast: Toast) {
-    const costTimeLog = `### Cost time: \`${(new Date().getTime() - startTime) / 1000}\` seconds`;
-    console.log(costTimeLog);
-    setMarkdown((prev) => prev + costTimeLog + "\n\n");
-
-    const successLog = `${title} Successfully`;
-    const completeLog = `## ${successLog} 🎉🎉🎉 \n\n`;
-    console.log(completeLog);
-    setMarkdown((prev) => prev + completeLog);
-
-    toast.style = Toast.Style.Success;
-    toast.title = successLog;
-  }
-
   return <Detail markdown={markdown} />;
+}
+
+function appendStringToFile(filePath: string, str: string): Promise<void> {
+  fs.appendFileSync(filePath, str);
+  return Promise.resolve();
+}
+
+async function removeStringFromFile(filePath: string, str: string): Promise<void> {
+  // -i means in-place, $ means end of line.
+  const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
+  await execaCommand(cmd, { shell: true });
+  console.log(`removeFileString done: ${filePath}`);
 }
 
 /**
@@ -247,7 +249,7 @@ export function md5File2(filePath: string): Promise<string> {
 }
 
 /**
- * Get media file type from file, use file-type.
+ * Get media file info from file, use file-type.
  */
 async function getMediaFileInfo(filePath: string): Promise<MediaFileInfo | undefined> {
   const fileName = path.basename(filePath);
