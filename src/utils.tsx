@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-22 13:05
+ * @lastEditTime: 2022-10-22 13:26
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -63,12 +63,10 @@ export default function ModifyHash(isModify: boolean) {
       const files = fs.readdirSync(filePath);
       const filePaths = files.map((file) => filePath + "/" + file);
       await exeCmdToFileListRecursive(filePaths, str, isModify);
-      return Promise.resolve();
     } else if (stat.isFile()) {
       const exeCmd = isModify ? appendFileString : removeFileString;
       await execCmdToFile(exeCmd, filePath, str);
       console.log(`appendStringToFile done: ${filePath}`);
-      return Promise.resolve();
     }
   }
 
@@ -79,7 +77,6 @@ export default function ModifyHash(isModify: boolean) {
     const exeCmdToFiles = filePaths.map((path) => exeCmdToFileRecursive(path, str, isModify));
     await Promise.all(exeCmdToFiles);
     console.log(`filePaths exeCmdToFileListRecursive done: ${filePaths}`);
-    return Promise.resolve();
   }
 
   /**
@@ -95,12 +92,12 @@ export default function ModifyHash(isModify: boolean) {
     const stat = fs.statSync(filePath);
     if (!stat.isFile()) {
       console.warn(`Not a file: ${filePath}`);
-      return Promise.resolve();
+      return;
     }
 
     const isVideo = await isVideoFile(filePath);
     if (!isVideo) {
-      return Promise.resolve();
+      return;
     }
 
     let modifyFileLog = `${action}: \`${path.basename(filePath)}\` \n\n`;
@@ -108,20 +105,17 @@ export default function ModifyHash(isModify: boolean) {
       setMarkdown((prev) => prev + modifyFileLog);
       console.log(modifyFileLog);
       await exeCmd(filePath, str);
-      return Promise.resolve();
     } else {
       const md5 = await md5File(filePath);
       modifyFileLog = `\`${path.basename(filePath)}\` old md5: \`${md5}\` \n\n`;
       setMarkdown((prev) => prev + modifyFileLog);
       console.log(modifyFileLog);
-
       await exeCmd(filePath, str);
       if (showMD5Log) {
         const newMD5 = await md5File(filePath);
         const newMD5Log = `\`${path.basename(filePath)}\` new md5: \`${newMD5}\` \n\n`;
         console.log(newMD5Log);
         setMarkdown((prev) => prev + newMD5Log + "\n\n");
-        return Promise.resolve();
       }
     }
   }
@@ -135,7 +129,6 @@ export default function ModifyHash(isModify: boolean) {
     const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
     await execaCommand(cmd, { shell: true });
     console.log(`removeFileString done: ${filePath}`);
-    return Promise.resolve();
   }
 
   useEffect(() => {
