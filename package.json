@@ -3,7 +3,7 @@
   "name": "modify-video-hash",
   "title": "Modify Video Hash",
   "description": "Batch modify the md5 hash of video files, which can be easily used for uploading online disk to prevent censorship and harmony.",
-  "icon": "command-icon.png",
+  "icon": "hasher.png",
   "author": "isfeng",
   "owner": "izual",
   "categories": [
@@ -23,14 +23,14 @@
     {
       "name": "modifyHash",
       "title": "Modify Hash",
-      "subtitle": "Video File",
+      "subtitle": "Video Files",
       "description": "Batch modify the md5 hash of video files.",
       "mode": "view"
     },
     {
       "name": "restoreHash",
       "title": "Restore Hash",
-      "subtitle": "Video File",
+      "subtitle": "Video Files",
       "description": "Batch restore the md5 hash of video files.",
       "mode": "view"
     }
