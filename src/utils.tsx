@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-22 13:26
+ * @lastEditTime: 2022-10-22 18:13
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -25,9 +25,9 @@ interface MyPreferences {
 export default function ModifyHash(isModify: boolean) {
   const [markdown, setMarkdown] = useState<string>();
   const title = isModify ? "Modify Video Hash" : "Restore Video Hash";
-  const action = title.split(" ")[0].toLocaleLowerCase();
+  const action = title.split(" ")[0];
   const showMD5Log = getPreferenceValues<MyPreferences>().showMD5Log;
-  const noFileSelectedMsg = "⚠️ No file selected";
+  const noFileSelectedMsg = "⚠️ No file selected, please select files containing video.";
 
   const getSelectedFilePaths = async () => {
     console.log("getSelectedFilePaths");
@@ -39,7 +39,7 @@ export default function ModifyHash(isModify: boolean) {
         setMarkdown((prev) => prev + noFileSelectedMsg);
         return;
       }
-      setMarkdown((prev) => prev + `### start \`${title}\` \n\n`);
+      setMarkdown((prev) => prev + `### Start \`${title}\` \n\n`);
       return selectedItems;
     } catch (error) {
       console.warn(`getSelectedFinderItems error: ${error}`);
@@ -64,9 +64,8 @@ export default function ModifyHash(isModify: boolean) {
       const filePaths = files.map((file) => filePath + "/" + file);
       await exeCmdToFileListRecursive(filePaths, str, isModify);
     } else if (stat.isFile()) {
-      const exeCmd = isModify ? appendFileString : removeFileString;
+      const exeCmd = isModify ? appendStringToFile : removeStringFromFile;
       await execCmdToFile(exeCmd, filePath, str);
-      console.log(`appendStringToFile done: ${filePath}`);
     }
   }
 
@@ -76,7 +75,6 @@ export default function ModifyHash(isModify: boolean) {
   async function exeCmdToFileListRecursive(filePaths: string[], str: string, isModify: boolean): Promise<void> {
     const exeCmdToFiles = filePaths.map((path) => exeCmdToFileRecursive(path, str, isModify));
     await Promise.all(exeCmdToFiles);
-    console.log(`filePaths exeCmdToFileListRecursive done: ${filePaths}`);
   }
 
   /**
@@ -100,16 +98,16 @@ export default function ModifyHash(isModify: boolean) {
       return;
     }
 
-    let modifyFileLog = `${action}: \`${path.basename(filePath)}\` \n\n`;
     if (!showMD5Log) {
+      const modifyFileLog = `${action} \`${path.basename(filePath)}\` \n\n`;
       setMarkdown((prev) => prev + modifyFileLog);
       console.log(modifyFileLog);
       await exeCmd(filePath, str);
     } else {
       const md5 = await md5File(filePath);
-      modifyFileLog = `\`${path.basename(filePath)}\` old md5: \`${md5}\` \n\n`;
-      setMarkdown((prev) => prev + modifyFileLog);
-      console.log(modifyFileLog);
+      const oldMD5Log = `\`${path.basename(filePath)}\` old md5: \`${md5}\` \n\n`;
+      setMarkdown((prev) => prev + oldMD5Log);
+      console.log(oldMD5Log);
       await exeCmd(filePath, str);
       if (showMD5Log) {
         const newMD5 = await md5File(filePath);
@@ -120,12 +118,12 @@ export default function ModifyHash(isModify: boolean) {
     }
   }
 
-  function appendFileString(filePath: string, str: string): Promise<void> {
+  function appendStringToFile(filePath: string, str: string): Promise<void> {
     fs.appendFileSync(filePath, str);
     return Promise.resolve();
   }
 
-  async function removeFileString(filePath: string, str: string): Promise<void> {
+  async function removeStringFromFile(filePath: string, str: string): Promise<void> {
     const cmd = `LC_CTYPE=C sed -i '' '$s/${str}//g' '${filePath}'`;
     await execaCommand(cmd, { shell: true });
     console.log(`removeFileString done: ${filePath}`);
@@ -152,7 +150,7 @@ export default function ModifyHash(isModify: boolean) {
   }, [markdown]);
 
   function showCostTimeLog(startTime: number, toast: Toast) {
-    const costTimeLog = `### cost time: \`${(new Date().getTime() - startTime) / 1000}\` seconds`;
+    const costTimeLog = `### Cost time: \`${(new Date().getTime() - startTime) / 1000}\` seconds`;
     console.log(costTimeLog);
     setMarkdown((prev) => prev + costTimeLog + "\n\n");
 
@@ -185,7 +183,7 @@ async function md5File(filePath: string): Promise<string> {
   console.log(`md5: ${md5}`);
   delete env.PATH;
 
-  return Promise.resolve(md5);
+  return md5;
 }
 
 /**
@@ -219,9 +217,9 @@ async function isVideoFile(filePath: string): Promise<boolean> {
     console.log(`File type: ${JSON.stringify(fileType)}`);
     const isVideo = fileType.mime.startsWith("video");
     console.log(`isVideo: ${isVideo}, ${fileName}`);
-    return Promise.resolve(isVideo);
+    return isVideo;
   }
-  return Promise.resolve(isVideoFileBySuffix(filePath));
+  return isVideoFileBySuffix(filePath);
 }
 
 /**
