@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-23 10:54
+ * @lastEditTime: 2022-10-23 12:29
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -136,8 +136,7 @@ export default function ModifyHash(isModify: boolean) {
       return;
     }
 
-    const enabledMediaTypes = enableTypes.map((type) => type.toLowerCase());
-    if (!enabledMediaTypes.includes(mediaFileInfo.mediaType)) {
+    if (!enableTypes.includes(mediaFileInfo.mediaType)) {
       console.warn(`Not a enabled media type: ${fileName}`);
       return;
     }
@@ -265,9 +264,16 @@ async function getMediaFileInfo(filePath: string): Promise<MediaFileInfo | undef
 
     const allMediaTypes = Object.values(MediaType).map((item) => item.toLowerCase());
     if (allMediaTypes.includes(type)) {
-      mediaFileInfo.mediaType = type as MediaType;
+      mediaFileInfo.mediaType = capitalizeFirstLetter(type) as MediaType;
       console.log(`mediaFileInfo: ${JSON.stringify(mediaFileInfo, null, 4)}`);
     }
     return mediaFileInfo;
   }
+}
+
+/**
+ * Capitalize the first letter of a string.
+ */
+function capitalizeFirstLetter(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
