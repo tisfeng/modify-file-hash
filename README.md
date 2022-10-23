@@ -20,6 +20,8 @@ Batch modify the hash of media files, which can be simply used for uploading onl
 
 ![modify-hash-3](https://raw.githubusercontent.com/tisfeng/ImageBed/main/uPic/modify-hash-3-1666520011.png)
 
+## Turn off `Show MD5 Log`
+
 ![modify-hash-4](https://raw.githubusercontent.com/tisfeng/ImageBed/main/uPic/modify-hash-4-1666520023.png)
 
 ![modify-hash-5-1666520357](https://raw.githubusercontent.com/tisfeng/ImageBed/main/uPic/modify-hash-5-1666520357.png)
