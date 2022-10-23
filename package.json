@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "modify-hash",
   "title": "Modify Hash",
-  "description": "Batch modify the md5 hash of media files, which can be simply used for uploading online disk to prevent censorship.",
+  "description": "Batch modify the hash of media files, which can be simply used for uploading online disk to prevent censorship.",
   "icon": "hasher.png",
   "author": "isfeng",
   "categories": [
@@ -26,14 +26,14 @@
       "name": "modifyHash",
       "title": "Modify Hash",
       "subtitle": "Media Files",
-      "description": "Batch modify the md5 hash of media files.",
+      "description": "Batch modify the hash of media files.",
       "mode": "view"
     },
     {
       "name": "restoreHash",
       "title": "Restore Hash",
       "subtitle": "Media Files",
-      "description": "Batch restore the md5 hash of media files.",
+      "description": "Batch restore the hash of media files.",
       "mode": "view"
     }
   ],
@@ -41,7 +41,7 @@
     {
       "label": "Show MD5 Log",
       "name": "showMD5Log",
-      "description": "Show modify or restore file md5 hash log, turn off it can save time.",
+      "description": "Show modify file md5 log by default, turn off it can save time when there are large video files.",
       "type": "checkbox",
       "required": false,
       "default": true
