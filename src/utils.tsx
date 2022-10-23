@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-23 10:34
+ * @lastEditTime: 2022-10-23 10:54
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -75,7 +75,7 @@ export default function ModifyHash(isModify: boolean) {
         setMarkdown((prev) => prev + noFileSelectedMsg);
         return;
       }
-      setMarkdown((prev) => prev + `### Start ${action}, Enabled File Types: \`${enableTypes}\` \n\n`);
+      setMarkdown((prev) => prev + `### Start ${action} ——> Enabled File Types: \`${enableTypes}\` \n\n`);
       return selectedItems;
     } catch (error) {
       console.warn(`getSelectedFinderItems error: ${error}`);
@@ -143,22 +143,20 @@ export default function ModifyHash(isModify: boolean) {
     }
 
     if (!showMD5Log) {
-      const modifyFileLog = `${action} \`${fileName}\` \n\n`;
+      const modifyFileLog = `- \`${fileName}\` \n\n`;
       setMarkdown((prev) => prev + modifyFileLog);
       console.log(modifyFileLog);
       await exeCmd(filePath, str);
     } else {
       const md5 = await md5File(filePath);
-      const oldMD5Log = `\`${fileName}\` old md5: \`${md5}\` \n\n`;
+      const oldMD5Log = `- \`${fileName}\` old md5: \`${md5}\` \n\n`;
       setMarkdown((prev) => prev + oldMD5Log);
       console.log(oldMD5Log);
       await exeCmd(filePath, str);
-      if (showMD5Log) {
-        const newMD5 = await md5File(filePath);
-        const newMD5Log = `\`${fileName}\` new md5: \`${newMD5}\` \n\n`;
-        console.log(newMD5Log);
-        setMarkdown((prev) => prev + newMD5Log + "\n\n");
-      }
+      const newMD5 = await md5File(filePath);
+      const newMD5Log = `- \`${fileName}\` new md5: \`${newMD5}\` \n\n`;
+      console.log(newMD5Log);
+      setMarkdown((prev) => prev + newMD5Log + "\n\n");
     }
   }
 
