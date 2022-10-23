@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-23 00:12
+ * @lastEditTime: 2022-10-23 10:34
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -136,7 +136,8 @@ export default function ModifyHash(isModify: boolean) {
       return;
     }
 
-    if (!enableTypes.includes(mediaFileInfo.mediaType)) {
+    const enabledMediaTypes = enableTypes.map((type) => type.toLowerCase());
+    if (!enabledMediaTypes.includes(mediaFileInfo.mediaType)) {
       console.warn(`Not a enabled media type: ${fileName}`);
       return;
     }
