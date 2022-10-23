@@ -1,3 +1,3 @@
-# Modify Video Hash Changelog
+# `Modify File Hash` Changelog
 
-## [Initial Version] - 2022-10-19
+## [Initial Version] - 2022-10-23
