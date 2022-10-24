@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-23 12:29
+ * @lastEditTime: 2022-10-25 01:50
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -10,13 +10,20 @@
 
 import { Detail, getPreferenceValues, getSelectedFinderItems, showToast, Toast } from "@raycast/api";
 import crypto from "crypto";
-import { execaCommand } from "execa";
+import { execaCommand, execaCommandSync } from "execa";
 import { fileTypeFromFile } from "file-type";
 import fs from "fs";
 import path from "path";
 import { useEffect, useState } from "react";
 
 export const APPEND_STRING = "#$1024$#";
+
+export enum ActionType {
+  ModifyHash = "Modify Hash",
+  RestoreHash = "Restore Hash",
+  ZipCompress = "ZipCompress",
+  ZipDecompress = "ZipDecompress",
+}
 
 interface MyPreferences {
   showMD5Log: boolean;
@@ -37,10 +44,29 @@ enum MediaType {
   Image = "Image",
 }
 
-export default function ModifyHash(isModify: boolean) {
+export default function RunCommand(actionType: ActionType) {
   const [markdown, setMarkdown] = useState<string>();
-  const title = isModify ? "Modify File Hash" : "Restore File Hash";
-  const action = title.split(" ")[0];
+
+  let title = "";
+  let action = "";
+  switch (actionType) {
+    case ActionType.ModifyHash:
+      title = "Modify File Hash";
+      action = "Modify";
+      break;
+    case ActionType.RestoreHash:
+      title = "Restore File Hash";
+      action = "Restore";
+      break;
+    case ActionType.ZipCompress:
+      title = "Zip Compress";
+      action = title;
+      break;
+    case ActionType.ZipDecompress:
+      title = "Zip Decompress";
+      action = title;
+      break;
+  }
 
   const myPreferences = getPreferenceValues<MyPreferences>();
   const { showMD5Log, enableVideo, enableAudio, enableImage } = myPreferences;
@@ -184,14 +210,72 @@ export default function ModifyHash(isModify: boolean) {
 
           const startTime = new Date().getTime();
           const filePaths = paths.map((item) => item.path);
-          await exeCmdToFileListRecursive(filePaths, APPEND_STRING, isModify);
-          console.warn(`exeCmdToFileRecursive done: ${isModify}`);
+
+          if (actionType === ActionType.ModifyHash || actionType === ActionType.RestoreHash) {
+            const isModify = actionType === ActionType.ModifyHash;
+            await exeCmdToFileListRecursive(filePaths, APPEND_STRING, isModify);
+            console.warn(`exeCmdToFileRecursive done: ${isModify}`);
+          } else {
+            if (actionType === ActionType.ZipCompress) {
+              zipCompressSelectedFiles(filePaths);
+            }
+          }
           showCostTimeLog(startTime, toast);
         }
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [markdown]);
+
+  /**
+   * Get zip compress file path.
+   *
+   * If filePaths has only one file, return the file path + '.zip'.
+   * If filePaths has only one directory, return the directory path + '.zip'.
+   * If filePaths has more than one file or directory, return the first file path + files count + '.zip'.
+   */
+  function getZipCompressFilePath(filePaths: string[]): string | undefined {
+    let firstFilePath = filePaths[0];
+    if (!firstFilePath) {
+      console.warn("No file selected");
+      return;
+    }
+
+    if (filePaths.length === 1) {
+      const stat = fs.statSync(firstFilePath);
+      if (stat.isFile()) {
+        return firstFilePath + ".zip";
+      } else if (stat.isDirectory()) {
+        if (firstFilePath.endsWith("/")) {
+          firstFilePath = firstFilePath.slice(0, -1);
+        }
+        return firstFilePath + ".zip";
+      }
+    } else {
+      const dir = path.dirname(firstFilePath);
+      const fileName = path.parse(firstFilePath).name;
+      return path.join(dir, fileName + `(${filePaths.length} files)` + ".zip");
+    }
+  }
+
+  /**
+   * Zip compress the selected files.
+   */
+  async function zipCompressSelectedFiles(filePaths: string[]): Promise<void> {
+    const selectedFileNames = filePaths.map((filePath) => path.basename(filePath));
+    const markdown = selectedFileNames.map((fileName) => `- \`${fileName}\` \n\n`).join("");
+    setMarkdown((prev) => prev + markdown);
+
+    const zipFilePath = getZipCompressFilePath(filePaths);
+    console.log(`zipFilePath: ${zipFilePath}`);
+    if (zipFilePath) {
+      const cmd = `zip -r  '${path.basename(zipFilePath)}'  '${selectedFileNames.join("' '")}'`;
+      console.log(`zip cmd: ${cmd}`);
+      execaCommandSync(cmd, { shell: true, cwd: path.dirname(zipFilePath) });
+
+      console.log(`ZipCompress done: ${zipFilePath}`);
+    }
+  }
 
   return <Detail markdown={markdown} />;
 }

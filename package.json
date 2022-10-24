@@ -35,6 +35,20 @@
       "subtitle": "Media Files",
       "description": "Batch restore the hash of media files.",
       "mode": "view"
+    },
+    {
+      "name": "zipCompress",
+      "title": "Zip Compress",
+      "subtitle": "Files",
+      "description": "Batch compress files to zip.",
+      "mode": "view"
+    },
+    {
+      "name": "zipDecompress",
+      "title": "Zip Decompress",
+      "subtitle": "Files",
+      "description": "Batch decompress files from zip.",
+      "mode": "view"
     }
   ],
   "preferences": [
