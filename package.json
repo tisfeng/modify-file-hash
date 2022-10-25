@@ -61,6 +61,14 @@
       "default": true
     },
     {
+      "title": "Zip Compress Password",
+      "name": "zipCompressPassword",
+      "description": "Password for zip compress.",
+      "type": "textfield",
+      "required": false,
+      "default": ""
+    },
+    {
       "title": "Enable to Modify the Type of Media Files",
       "name": "enableVideo",
       "label": "Video",

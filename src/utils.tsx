@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-25 01:50
+ * @lastEditTime: 2022-10-25 17:34
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -10,7 +10,7 @@
 
 import { Detail, getPreferenceValues, getSelectedFinderItems, showToast, Toast } from "@raycast/api";
 import crypto from "crypto";
-import { execaCommand, execaCommandSync } from "execa";
+import { execaCommand } from "execa";
 import { fileTypeFromFile } from "file-type";
 import fs from "fs";
 import path from "path";
@@ -30,6 +30,7 @@ interface MyPreferences {
   enableVideo: boolean;
   enableAudio: boolean;
   enableImage: boolean;
+  zipCompressPassword: string;
 }
 
 export interface MediaFileInfo {
@@ -69,7 +70,7 @@ export default function RunCommand(actionType: ActionType) {
   }
 
   const myPreferences = getPreferenceValues<MyPreferences>();
-  const { showMD5Log, enableVideo, enableAudio, enableImage } = myPreferences;
+  const { showMD5Log, zipCompressPassword, enableVideo, enableAudio, enableImage } = myPreferences;
   const enableTypes: MediaType[] = [];
   if (enableVideo) {
     enableTypes.push(MediaType.Video);
@@ -101,7 +102,6 @@ export default function RunCommand(actionType: ActionType) {
         setMarkdown((prev) => prev + noFileSelectedMsg);
         return;
       }
-      setMarkdown((prev) => prev + `### Start ${action} ——> Enabled File Types: \`${enableTypes}\` \n\n`);
       return selectedItems;
     } catch (error) {
       console.warn(`getSelectedFinderItems error: ${error}`);
@@ -212,12 +212,16 @@ export default function RunCommand(actionType: ActionType) {
           const filePaths = paths.map((item) => item.path);
 
           if (actionType === ActionType.ModifyHash || actionType === ActionType.RestoreHash) {
+            setMarkdown((prev) => prev + `### Start ${action} ——> Enabled File Types: \`${enableTypes}\` \n\n`);
+
             const isModify = actionType === ActionType.ModifyHash;
             await exeCmdToFileListRecursive(filePaths, APPEND_STRING, isModify);
             console.warn(`exeCmdToFileRecursive done: ${isModify}`);
           } else {
+            setMarkdown((prev) => prev + `### Start ${action} \n\n`);
+
             if (actionType === ActionType.ZipCompress) {
-              zipCompressSelectedFiles(filePaths);
+              await zipCompressSelectedFiles(filePaths);
             }
           }
           showCostTimeLog(startTime, toast);
@@ -269,11 +273,15 @@ export default function RunCommand(actionType: ActionType) {
     const zipFilePath = getZipCompressFilePath(filePaths);
     console.log(`zipFilePath: ${zipFilePath}`);
     if (zipFilePath) {
-      const cmd = `zip -r  '${path.basename(zipFilePath)}'  '${selectedFileNames.join("' '")}'`;
+      const password = zipCompressPassword.trim();
+      let cmd = "zip -r ";
+      if (password.length > 0) {
+        cmd += `-P '${password}' `;
+      }
+      cmd += `'${path.basename(zipFilePath)}'  '${selectedFileNames.join("' '")}'`;
       console.log(`zip cmd: ${cmd}`);
-      execaCommandSync(cmd, { shell: true, cwd: path.dirname(zipFilePath) });
-
-      console.log(`ZipCompress done: ${zipFilePath}`);
+      await execaCommand(cmd, { shell: true, cwd: path.dirname(zipFilePath) });
+      console.log(`ZipCompress with password done: ${zipFilePath}`);
     }
   }
 
