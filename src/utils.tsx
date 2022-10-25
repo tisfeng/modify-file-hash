@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-25 22:59
+ * @lastEditTime: 2022-10-26 00:20
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -30,7 +30,8 @@ interface MyPreferences {
   enableVideo: boolean;
   enableAudio: boolean;
   enableImage: boolean;
-  zipCompressPassword: string;
+  zipPassword: string;
+  enableZipPassword: boolean;
 }
 
 export interface MediaFileInfo {
@@ -48,35 +49,30 @@ enum MediaType {
 export default function RunCommand(actionType: ActionType) {
   const [markdown, setMarkdown] = useState<string>();
 
-  let title = "";
-  let action = "";
-  let isHashAction = false;
+  let title = "Modify File Hash";
+  let isHashAction = true;
   switch (actionType) {
     case ActionType.ModifyHash:
       title = "Modify File Hash";
-      action = "Modify";
       isHashAction = true;
       break;
     case ActionType.RestoreHash:
       title = "Restore File Hash";
-      action = "Restore";
       isHashAction = true;
       break;
     case ActionType.ZipCompress:
       title = "Zip Compress";
-      action = title;
       isHashAction = false;
       break;
     case ActionType.ZipDecompress:
       title = "Zip Decompress";
-      action = title;
       isHashAction = false;
       break;
   }
 
-  const myPreferences = getPreferenceValues<MyPreferences>();
-  const { showMD5Log, zipCompressPassword, enableVideo, enableAudio, enableImage } = myPreferences;
-  const password = zipCompressPassword.trim();
+  const { showMD5Log, zipPassword, enableZipPassword, enableVideo, enableAudio, enableImage } =
+    getPreferenceValues<MyPreferences>();
+  const password = zipPassword.trim();
   const enableTypes: MediaType[] = [];
   if (enableVideo) {
     enableTypes.push(MediaType.Video);
@@ -208,45 +204,6 @@ export default function RunCommand(actionType: ActionType) {
     toast.title = successLog;
   }
 
-  useEffect(() => {
-    if (markdown === undefined) {
-      getSelectedFilePaths().then(async (paths) => {
-        if (paths) {
-          const toast = await showToast({
-            style: Toast.Style.Animated,
-            title: `Start ${title} ......`,
-          });
-
-          const startTime = new Date().getTime();
-          const filePaths = paths.map((item) => item.path);
-
-          if (actionType === ActionType.ModifyHash || actionType === ActionType.RestoreHash) {
-            const modifyHashTitle = `### Start ${action} ——> Enabled File Types: \`${enableTypes}\` \n\n`;
-            setMarkdown((prev) => prev + modifyHashTitle);
-
-            const isModify = actionType === ActionType.ModifyHash;
-            await exeCmdToFileListRecursive(filePaths, APPEND_STRING, isModify);
-            console.warn(`exeCmdToFileRecursive done: ${isModify}`);
-          } else {
-            let zipCompressTitle = `### Start ${action}`;
-            if (password) {
-              zipCompressTitle += ` ——> Password: \`${password}\` \n\n`;
-            }
-            setMarkdown((prev) => prev + zipCompressTitle);
-
-            if (actionType === ActionType.ZipCompress) {
-              await zipCompressFiles(filePaths);
-            } else {
-              await zipDecompressFiles(filePaths);
-            }
-          }
-          showCostTimeLog(startTime, toast);
-        }
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [markdown]);
-
   /**
    * Get zip compress file path.
    *
@@ -279,7 +236,7 @@ export default function RunCommand(actionType: ActionType) {
   }
 
   /**
-   * Zip compress or decompress selected files.
+   * Zip compress selected files.
    */
   async function zipCompressFiles(filePaths: string[]): Promise<void> {
     const selectedFileNames = filePaths.map((filePath) => path.basename(filePath));
@@ -289,17 +246,18 @@ export default function RunCommand(actionType: ActionType) {
     const zipFilePath = getZipCompressFilePath(filePaths);
     console.log(`zipFilePath: ${zipFilePath}`);
     if (zipFilePath) {
-      const dir = path.dirname(zipFilePath);
-      const zipFileName = path.basename(zipFilePath);
+      const uniqueZipFilePath = getUniqueFilePath(zipFilePath);
+      const dir = path.dirname(uniqueZipFilePath);
+      const zipFileName = path.basename(uniqueZipFilePath);
       let cmd = "zip -r ";
-      if (password.length > 0) {
+      if (enableZipPassword && password.length > 0) {
         cmd += `-P '${password}' `;
       }
       cmd += `'${zipFileName}'  '${selectedFileNames.join("' '")}'`;
       console.log(`zip cmd: ${cmd}`);
       await execaCommand(cmd, { shell: true, cwd: dir });
 
-      const zipCompressLog = `### Zip Compressed to File: \`${zipFileName}\` \n\n`;
+      const zipCompressLog = `#### Zip Compressed to File: \`${zipFileName}\` \n\n`;
       setMarkdown((prev) => prev + zipCompressLog);
       console.log(zipCompressLog);
     }
@@ -326,10 +284,10 @@ export default function RunCommand(actionType: ActionType) {
       // yyk.mp4.zip.zip  =>  yyk
       const fileNameWithoutExt = fileName.slice(0, fileName.indexOf("."));
       const zipDecompressFilePath = path.join(dir, fileNameWithoutExt);
-      const zipUniqueFilePath = getUniqueFilePath(zipDecompressFilePath);
-      console.log(`zipUniqueFilePath: ${zipUniqueFilePath}`);
+      const uniqueZipFilePath = getUniqueFilePath(zipDecompressFilePath);
+      console.log(`uniqueZipFilePath: ${uniqueZipFilePath}`);
 
-      await zipDecompressFilesToPath(zipFilePaths, zipUniqueFilePath);
+      await zipDecompressFilesToPath(zipFilePaths, uniqueZipFilePath);
     }
   }
 
@@ -348,7 +306,7 @@ export default function RunCommand(actionType: ActionType) {
     const decompressFileNames = zipFilePaths.map((filePath) => path.basename(filePath, ".zip"));
     const decompressFileCommands = decompressFileNames.map((fileName) => {
       let cmd = `unzip -d '${decompressedFileName}' `;
-      if (password.length > 0) {
+      if (enableZipPassword && password.length > 0) {
         cmd += `-P '${password}' `;
       }
       cmd += `'${fileName}' `;
@@ -358,7 +316,7 @@ export default function RunCommand(actionType: ActionType) {
 
     try {
       await Promise.all(decompressFileCommands);
-      const decompressLog = `### Decompressed to File: \`${decompressedFileName}\` \n\n`;
+      const decompressLog = `#### Decompressed to File: \`${decompressedFileName}\` \n\n`;
       setMarkdown((prev) => prev + decompressLog);
       console.log(decompressLog);
     } catch (error) {
@@ -374,33 +332,45 @@ export default function RunCommand(actionType: ActionType) {
     }
   }
 
-  /**
-   * Get a unique file name, if the file path already exists, add a number suffix.
-   */
-  function getUniqueFilePath(filePath: string): string {
-    if (!fs.existsSync(filePath)) {
-      return filePath;
+  useEffect(() => {
+    if (markdown === undefined) {
+      getSelectedFilePaths().then(async (paths) => {
+        if (paths) {
+          const toast = await showToast({
+            style: Toast.Style.Animated,
+            title: `Start ${title} ......`,
+          });
+
+          const startTime = new Date().getTime();
+          const filePaths = paths.map((item) => item.path);
+
+          if (isHashAction) {
+            const modifyHashTitle = `### Start ${title}  ——>  Enabled File Types: \`${enableTypes}\` \n\n`;
+            setMarkdown((prev) => prev + modifyHashTitle);
+
+            const isModify = actionType === ActionType.ModifyHash;
+            await exeCmdToFileListRecursive(filePaths, APPEND_STRING, isModify);
+            console.warn(`exeCmdToFileRecursive done: ${isModify}`);
+          } else {
+            let zipCompressTitle = `### Start ${title}`;
+            if (enableZipPassword && password.length > 0) {
+              zipCompressTitle += `  ——>  Password: \`${password}\` `;
+            }
+            zipCompressTitle += `\n\n`;
+            setMarkdown((prev) => prev + zipCompressTitle);
+
+            if (actionType === ActionType.ZipCompress) {
+              await zipCompressFiles(filePaths);
+            } else {
+              await zipDecompressFiles(filePaths);
+            }
+          }
+          showCostTimeLog(startTime, toast);
+        }
+      });
     }
-
-    const dir = path.dirname(filePath);
-    const fileName = path.parse(filePath).name;
-    const ext = path.extname(filePath);
-
-    let i = 2;
-    while (fs.existsSync(filePath)) {
-      filePath = path.join(dir, fileName + ` ${i}` + ext);
-      i++;
-    }
-    return filePath;
-  }
-
-  /**
-   * Check if the file is a zip file.
-   */
-  function isZipFile(filePath: string): boolean {
-    const ext = path.extname(filePath);
-    return ext === ".zip" || ext === ".ZIP";
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markdown]);
 
   return <Detail markdown={markdown} />;
 }
@@ -485,4 +455,32 @@ async function getMediaFileInfo(filePath: string): Promise<MediaFileInfo | undef
  */
 function capitalizeFirstLetter(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+/**
+ * Get a unique file path, if the file path already exists, add a number suffix.
+ */
+function getUniqueFilePath(filePath: string): string {
+  if (!fs.existsSync(filePath)) {
+    return filePath;
+  }
+
+  const dir = path.dirname(filePath);
+  const fileName = path.parse(filePath).name;
+  const ext = path.extname(filePath);
+
+  let i = 2;
+  while (fs.existsSync(filePath)) {
+    filePath = path.join(dir, fileName + ` ${i}` + ext);
+    i++;
+  }
+  return filePath;
+}
+
+/**
+ * Check if the file is a zip file.
+ */
+function isZipFile(filePath: string): boolean {
+  const ext = path.extname(filePath);
+  return ext === ".zip" || ext === ".ZIP";
 }
