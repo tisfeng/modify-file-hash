@@ -2,7 +2,7 @@
  * @author: tisfeng
  * @createTime: 2022-10-19 22:28
  * @lastEditor: tisfeng
- * @lastEditTime: 2022-10-26 00:20
+ * @lastEditTime: 2022-10-27 22:59
  * @fileName: utils.tsx
  *
  * Copyright (c) 2022 by tisfeng, All Rights Reserved.
@@ -22,7 +22,7 @@ export enum ActionType {
   ModifyHash = "Modify Hash",
   RestoreHash = "Restore Hash",
   ZipCompress = "ZipCompress",
-  ZipDecompress = "ZipDecompress",
+  ZipExtract = "ZipExtract",
 }
 
 interface MyPreferences {
@@ -64,8 +64,8 @@ export default function RunCommand(actionType: ActionType) {
       title = "Zip Compress";
       isHashAction = false;
       break;
-    case ActionType.ZipDecompress:
-      title = "Zip Decompress";
+    case ActionType.ZipExtract:
+      title = "Zip Extract";
       isHashAction = false;
       break;
   }
@@ -264,9 +264,9 @@ export default function RunCommand(actionType: ActionType) {
   }
 
   /**
-   * Decompress zip file.
+   * Extract zip file.
    */
-  async function zipDecompressFiles(filePaths: string[]): Promise<void> {
+  async function zipExtractFiles(filePaths: string[]): Promise<void> {
     const zipFilePaths = filePaths.filter((filePath) => isZipFile(filePath));
     if (zipFilePaths.length === 0) {
       const noZipFileLog = "⚠️ No zip file selected. \n\n";
@@ -283,18 +283,18 @@ export default function RunCommand(actionType: ActionType) {
 
       // yyk.mp4.zip.zip  =>  yyk
       const fileNameWithoutExt = fileName.slice(0, fileName.indexOf("."));
-      const zipDecompressFilePath = path.join(dir, fileNameWithoutExt);
-      const uniqueZipFilePath = getUniqueFilePath(zipDecompressFilePath);
+      const zipExtractFilePath = path.join(dir, fileNameWithoutExt);
+      const uniqueZipFilePath = getUniqueFilePath(zipExtractFilePath);
       console.log(`uniqueZipFilePath: ${uniqueZipFilePath}`);
 
-      await zipDecompressFilesToPath(zipFilePaths, uniqueZipFilePath);
+      await zipExtractFilesToPath(zipFilePaths, uniqueZipFilePath);
     }
   }
 
   /**
-   * Decompress zip files to file path.
+   * Extract zip files to file path.
    */
-  async function zipDecompressFilesToPath(zipFilePaths: string[], targetPath: string): Promise<void> {
+  async function zipExtractFilesToPath(zipFilePaths: string[], targetPath: string): Promise<void> {
     fs.mkdirSync(targetPath);
 
     const selectedFileNames = zipFilePaths.map((filePath) => path.basename(filePath));
@@ -302,10 +302,10 @@ export default function RunCommand(actionType: ActionType) {
     setMarkdown((prev) => prev + markdown);
 
     const dir = path.dirname(targetPath);
-    const decompressedFileName = path.basename(targetPath);
-    const decompressFileNames = zipFilePaths.map((filePath) => path.basename(filePath, ".zip"));
-    const decompressFileCommands = decompressFileNames.map((fileName) => {
-      let cmd = `unzip -d '${decompressedFileName}' `;
+    const extractedFileName = path.basename(targetPath);
+    const extractFileNames = zipFilePaths.map((filePath) => path.basename(filePath, ".zip"));
+    const extractFileCommands = extractFileNames.map((fileName) => {
+      let cmd = `unzip -d '${extractedFileName}' `;
       if (enableZipPassword && password.length > 0) {
         cmd += `-P '${password}' `;
       }
@@ -315,15 +315,15 @@ export default function RunCommand(actionType: ActionType) {
     });
 
     try {
-      await Promise.all(decompressFileCommands);
-      const decompressLog = `#### Decompressed to File: \`${decompressedFileName}\` \n\n`;
-      setMarkdown((prev) => prev + decompressLog);
-      console.log(decompressLog);
+      await Promise.all(extractFileCommands);
+      const extractLog = `#### Zip Extracted to File: \`${extractedFileName}\` \n\n`;
+      setMarkdown((prev) => prev + extractLog);
+      console.log(extractLog);
     } catch (error) {
       fs.rmdirSync(targetPath);
 
       const err = error as ExecaReturnValue;
-      console.error(`ZipDecompress error: ${JSON.stringify(err, null, 4)}`);
+      console.error(`ZipExtract error: ${JSON.stringify(err, null, 4)}`);
       let errorLog = `### ⚠️ Error \n\n `;
       errorLog += `\`\`\` \n\n`;
       errorLog += `${err.stderr} \n\n`;
@@ -362,7 +362,7 @@ export default function RunCommand(actionType: ActionType) {
             if (actionType === ActionType.ZipCompress) {
               await zipCompressFiles(filePaths);
             } else {
-              await zipDecompressFiles(filePaths);
+              await zipExtractFiles(filePaths);
             }
           }
           showCostTimeLog(startTime, toast);
@@ -482,5 +482,5 @@ function getUniqueFilePath(filePath: string): string {
  */
 function isZipFile(filePath: string): boolean {
   const ext = path.extname(filePath);
-  return ext === ".zip" || ext === ".ZIP";
+  return ext.toLocaleLowerCase() === ".zip";
 }

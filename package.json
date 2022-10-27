@@ -16,9 +16,9 @@
     "image",
     "hash",
     "md5",
-    "modify",
-    "restore",
-    "anti-censorship"
+    "anti-censorship",
+    "zip",
+    "encrypt"
   ],
   "license": "MIT",
   "commands": [
@@ -40,14 +40,14 @@
       "name": "zipCompress",
       "title": "Zip Compress",
       "subtitle": "Files",
-      "description": "Batch compress files to zip with password.",
+      "description": "Compress files to zip with password.",
       "mode": "view"
     },
     {
-      "name": "zipDecompress",
-      "title": "Zip Decompress",
+      "name": "zipExtract",
+      "title": "Zip Extract",
       "subtitle": "Zip Files",
-      "description": "Batch decompress zip files with password.",
+      "description": "Extract files from zip with password.",
       "mode": "view"
     }
   ],
@@ -63,7 +63,7 @@
     {
       "label": "Enable Zip Password",
       "name": "enableZipPassword",
-      "description": "Enable zip compress and decompress with password.",
+      "description": "Enable zip compress and extract with password.",
       "type": "checkbox",
       "required": false,
       "default": true
@@ -71,7 +71,7 @@
     {
       "title": "Zip Password",
       "name": "zipPassword",
-      "description": "Password for zip compress and decompress.",
+      "description": "Password for zip compress and extract.",
       "type": "textfield",
       "required": false,
       "default": "1024"
