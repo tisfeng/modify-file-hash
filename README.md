@@ -1,5 +1,11 @@
 # Modify File Hash
 
+
+<p align="center">
+<a href="https://www.raycast.com/isfeng/modify-hash"><img src="https://raw.githubusercontent.com/tisfeng/ImageBed/main/uPic/install_button@2x-1666884638.png" height="64" alt="" style="height: 64px;">
+</a>
+</p>
+
 Batch modify the hash of media files, which can be simply used for uploading online disk to prevent censorship. This is a Raycast extension of [modify_videos_md5](https://github.com/tisfeng/modify_videos_md5).
 
 But sometimes, just modifying the hash of the file is not enough to bypass the review, such as manual review, or video content recognition technology, so I added two commands to facilitate compressing and extracting files with encryption: `Zip Compress` and `Zip Extract`.
@@ -16,7 +22,7 @@ But sometimes, just modifying the hash of the file is not enough to bypass the r
 
 批量修改媒体文件的哈希值，可简单用于上传网盘防审查。这是一个 [modify_videos_md5](https://github.com/tisfeng/modify_videos_md5) 的 Raycast 扩展。
 
-但有时候，仅仅修改文件的哈希值并不足以绕过审查，比如人工审查，或视频内容识别等技术，所以我又添加了方便对文件进行加密压缩和提取的两个命令：`Zip Compress` 和 `Zip Extract`。
+但有时候，仅仅修改文件的哈希值并不足以绕过审查，比如人工审查，或视频内容识别等技术，所以我又添加了两个方便对文件进行加密压缩和提取的命令：`Zip Compress` 和 `Zip Extract`。
 
 ## 功能
 
